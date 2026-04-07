@@ -10,10 +10,13 @@ const DoctorCalendarPage = () => import("@/modules/doctor/pages/DoctorCalendarPa
 const DoctorDashboardPage = () => import("@/modules/doctor/pages/DoctorDashboardPage.vue");
 const DoctorPatientDetailPage = () => import("@/modules/doctor/pages/DoctorPatientDetailPage.vue");
 const PatientChecklistPage = () => import("@/modules/patient/pages/PatientChecklistPage.vue");
+const PatientCalendarPage = () => import("@/modules/patient/pages/PatientCalendarPage.vue");
 const PatientConsentPage = () => import("@/modules/patient/pages/PatientConsentPage.vue");
 const PatientDashboardPage = () => import("@/modules/patient/pages/PatientDashboardPage.vue");
+const PatientEmptyPage = () => import("@/modules/patient/pages/PatientEmptyPage.vue");
 const PatientInvitePage = () => import("@/modules/patient/pages/PatientInvitePage.vue");
 const PatientProgressPage = () => import("@/modules/patient/pages/PatientProgressPage.vue");
+const PatientSleepPage = () => import("@/modules/patient/pages/PatientSleepPage.vue");
 const PatientSurgeryDetailsPage = () => import("@/modules/patient/pages/PatientSurgeryDetailsPage.vue");
 
 export const routes: RouteRecordRaw[] = [
@@ -44,6 +47,12 @@ export const routes: RouteRecordRaw[] = [
     component: PatientShell,
     children: [
       {
+        path: "empty",
+        name: "patient-empty",
+        component: PatientEmptyPage,
+        meta: { role: "patient", requiresAuth: true },
+      },
+      {
         path: "invite",
         name: "patient-invite",
         component: PatientInvitePage,
@@ -71,6 +80,18 @@ export const routes: RouteRecordRaw[] = [
         path: "checklist",
         name: "patient-checklist",
         component: PatientChecklistPage,
+        meta: { role: "patient", requiresAuth: true, requiresConsent: true },
+      },
+      {
+        path: "calendar",
+        name: "patient-calendar",
+        component: PatientCalendarPage,
+        meta: { role: "patient", requiresAuth: true, requiresConsent: true },
+      },
+      {
+        path: "sleep",
+        name: "patient-sleep",
+        component: PatientSleepPage,
         meta: { role: "patient", requiresAuth: true, requiresConsent: true },
       },
       {

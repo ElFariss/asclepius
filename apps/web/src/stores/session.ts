@@ -34,8 +34,9 @@ export const useSessionStore = defineStore("session", () => {
 
   const isAuthenticated = computed(() => Boolean(session.value));
   const role = computed<UserRole | null>(() => session.value?.role ?? null);
+  const userId = computed(() => session.value?.userId ?? "");
   const consentAccepted = computed(() => session.value?.consentAccepted ?? false);
-  const patientStage = computed<PatientJourneyStage>(() => session.value?.patientStage ?? "invite");
+  const patientStage = computed<PatientJourneyStage>(() => session.value?.patientStage ?? "empty");
   const displayName = computed(() => session.value?.displayName ?? "");
 
   const persist = (nextSession: AuthSession | null) => {
@@ -113,6 +114,7 @@ export const useSessionStore = defineStore("session", () => {
     register,
     role,
     session,
+    userId,
     acceptConsent,
     advancePatientStage,
   };

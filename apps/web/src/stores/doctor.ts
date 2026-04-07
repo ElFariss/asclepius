@@ -2,12 +2,27 @@ import { ref } from "vue";
 import { defineStore } from "pinia";
 
 import { doctorGateway } from "@/services/adapters/mockAdapters";
-import type { DoctorDashboardData, PatientDetail, Protocol, SurgeryDecision } from "@/types/domain";
+import type {
+  CarePlanDraft,
+  DoctorDashboardData,
+  PatientDetail,
+  PatientLookupRecord,
+  SurgeryDecision,
+} from "@/types/domain";
+
+const emptyDraft = (): CarePlanDraft => ({
+  patientId: "",
+  surgeryDate: "",
+  surgeryDocument: null,
+  medications: [],
+  diet: [],
+});
 
 export const useDoctorStore = defineStore("doctor", () => {
   const dashboard = ref<DoctorDashboardData | null>(null);
   const currentPatient = ref<PatientDetail | null>(null);
-  const protocols = ref<Protocol[]>([]);
+  const lookupResult = ref<PatientLookupRecord | null>(null);
+  const currentDraft = ref<CarePlanDraft>(emptyDraft());
   const surgeryDecision = ref<SurgeryDecision>("none");
   const loading = ref(false);
 
@@ -24,30 +39,51 @@ export const useDoctorStore = defineStore("doctor", () => {
     }
   };
 
-  const loadProtocols = async () => {
-    protocols.value = await doctorGateway.getProtocols();
+  const lookupPatient = async (patientId: string) => {
+    lookupResult.value = await doctorGateway.lookupPatientById(patientId);
+    return lookupResult.value;
+  };
+
+  const setDraft = (draft: Partial<CarePlanDraft>) => {
+    currentDraft.value = {
+      ...currentDraft.value,
+      ...draft,
+    };
+  };
+
+  const resetDraft = () => {
+    currentDraft.value = emptyDraft();
+    lookupResult.value = null;
+  };
+
+  const saveDraft = async () => {
+    currentDraft.value = await doctorGateway.saveDraftCarePlan(currentDraft.value);
+    return currentDraft.value;
+  };
+
+  const finalizePendingInvite = async () => {
+    const result = await doctorGateway.finalizePendingInvite(currentDraft.value);
+    await loadDashboard();
+    return result;
   };
 
   const setSurgeryDecision = (decision: SurgeryDecision) => {
     surgeryDecision.value = decision;
   };
 
-  const createPatientInvitation = async (payload: {
-    name: string;
-    medicalRecordNumber: string;
-    surgeryDate: string;
-    protocolId: string;
-  }) => doctorGateway.createPatientInvitation(payload);
-
   return {
-    createPatientInvitation,
+    currentDraft,
     currentPatient,
     dashboard,
+    finalizePendingInvite,
     loadDashboard,
     loadPatient,
-    loadProtocols,
     loading,
-    protocols,
+    lookupPatient,
+    lookupResult,
+    resetDraft,
+    saveDraft,
+    setDraft,
     setSurgeryDecision,
     surgeryDecision,
   };

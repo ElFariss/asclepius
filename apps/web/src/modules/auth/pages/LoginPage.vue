@@ -1,26 +1,37 @@
 <template>
-  <div class="flex h-full flex-col gap-8">
-    <div class="space-y-5">
-      <AuthRoleTabs />
-      <div class="space-y-3">
-        <p class="eyebrow">{{ currentRole === 'doctor' ? 'Doctor access' : 'Patient access' }}</p>
-        <h2 class="page-title text-4xl font-bold text-slate-950">
-          {{ currentRole === "doctor" ? "Review readiness across your patient list." : "Stay aligned with your surgery plan." }}
-        </h2>
-        <p class="muted-copy max-w-xl text-sm leading-7">
-          {{ currentRole === "doctor" ? "Access patient status, monitor compliance, and decide faster on readiness." : "Check your invitation, understand the procedure, and complete your daily preparation with confidence." }}
-        </p>
+  <div class="flex h-full flex-col bg-white p-8">
+    <div class="mt-12 mb-8 flex flex-col items-center">
+      <div
+        class="mb-4 flex h-20 w-20 items-center justify-center rounded-[2rem] text-white shadow-xl transition-all duration-500"
+        :class="currentRole === 'doctor' ? 'bg-blue-600 shadow-blue-200' : 'bg-blue-500 shadow-blue-100'"
+      >
+        <Stethoscope
+          v-if="currentRole === 'doctor'"
+          :size="40"
+        />
+        <User
+          v-else
+          :size="40"
+        />
       </div>
+      <h1 class="page-title text-2xl font-bold text-slate-900">
+        PreOp {{ currentRole === "doctor" ? "Doctor" : "Patient" }}
+      </h1>
+      <p class="text-sm text-slate-500">
+        {{ currentRole === "doctor" ? "Patient Management Portal" : "Your Surgery Preparation Companion" }}
+      </p>
     </div>
 
+    <AuthRoleTabs />
+
     <form
-      class="space-y-4"
+      class="mt-8 space-y-4"
       @submit.prevent="handleSubmit"
     >
       <BaseInput
         v-model="form.email"
         label="Email Address"
-        placeholder="name@example.com"
+        :placeholder="currentRole === 'doctor' ? 'dr.andi@hospital.com' : 'patient@example.com'"
         type="email"
       />
       <BaseInput
@@ -30,27 +41,36 @@
         type="password"
       />
       <BaseButton type="submit">
-        {{ currentRole === "doctor" ? "Open Doctor Dashboard" : "Continue to Preparation" }}
+        Login to Dashboard
       </BaseButton>
     </form>
 
-    <div class="surface-soft rounded-[2rem] p-5">
-      <p class="text-sm text-slate-700">
-        {{ currentRole === "doctor" ? "Need an account for a new clinician?" : "First time here?" }}
+    <div class="mt-6 text-center">
+      <p class="text-sm text-slate-500">
+        Don't have an account?
         <RouterLink
-          class="ml-1 font-semibold text-[var(--brand-blue)]"
+          class="ml-1 font-bold text-blue-600 hover:underline"
           :to="`/${currentRole}/register`"
         >
-          Create one now
+          Register Now
         </RouterLink>
       </p>
     </div>
+
+    <p class="mt-auto text-center text-[10px] text-slate-400">
+      {{
+        currentRole === "doctor"
+          ? "Session will automatically end after 30 minutes of inactivity."
+          : "Your data is encrypted and stored securely."
+      }}
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { computed, reactive, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
+import { Stethoscope, User } from "lucide-vue-next";
 
 import AuthRoleTabs from "@/modules/auth/components/AuthRoleTabs.vue";
 import BaseButton from "@/components/ui/BaseButton.vue";
@@ -63,11 +83,19 @@ const router = useRouter();
 const sessionStore = useSessionStore();
 
 const currentRole = computed<UserRole>(() => (route.meta.role as UserRole) ?? "patient");
-
 const form = reactive({
-  email: currentRole.value === "doctor" ? "dr.andi@hospital.com" : "patient@example.com",
+  email: "patient@example.com",
   password: "password123",
 });
+
+watch(
+  currentRole,
+  (role) => {
+    form.email = role === "doctor" ? "dr.andi@hospital.com" : "patient@example.com";
+    form.password = "password123";
+  },
+  { immediate: true },
+);
 
 const handleSubmit = async () => {
   await sessionStore.login(currentRole.value, form);

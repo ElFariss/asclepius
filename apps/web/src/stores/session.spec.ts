@@ -1,10 +1,13 @@
 import { createPinia, setActivePinia } from "pinia";
 
+import { registry } from "@/services/adapters/mockRegistry";
 import { useSessionStore } from "@/stores/session";
 
 describe("session store", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     window.sessionStorage.clear();
+    registry.reset();
     setActivePinia(createPinia());
   });
 
@@ -17,7 +20,7 @@ describe("session store", () => {
     });
 
     expect(store.isAuthenticated).toBe(true);
-    expect(store.defaultHomeRoute).toBe("/patient/invite");
+    expect(store.defaultHomeRoute).toBe("/patient/empty");
   });
 
   it("accepts consent and redirects the patient home to the dashboard", async () => {

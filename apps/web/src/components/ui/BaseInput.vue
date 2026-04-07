@@ -10,7 +10,7 @@
       :type="type"
       :placeholder="placeholder"
       :value="modelValue"
-      class="w-full rounded-[1.6rem] bg-white/85 px-4 py-3.5 text-sm text-slate-900 outline-none ring-1 ring-transparent transition focus:ring-[var(--brand-blue)]"
+      class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-blue-500"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
   </label>

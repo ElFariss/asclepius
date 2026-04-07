@@ -13,9 +13,11 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",
     "clsx": "^2.1.1",
+    "docx-preview": "^0.3.6",
     "echarts": "^5.6.0",
     "lucide-vue-next": "^0.511.0",
     "pinia": "^3.0.3",
+    "pdfjs-dist": "^4.10.38",
     "tailwind-merge": "^3.3.1",
     "vue": "^3.5.13",
     "vue-echarts": "^7.0.3",

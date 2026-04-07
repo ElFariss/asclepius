@@ -15,8 +15,11 @@ import { LineChart } from "echarts/charts";
 import { use } from "echarts/core";
 import { provide } from "vue";
 
+import { useThemeStore } from "@/stores/theme";
+
 use([CanvasRenderer, GridComponent, LineChart, TooltipComponent]);
 provide(THEME_KEY, "light");
+const themeStore = useThemeStore();
 
 const props = withDefaults(
   defineProps<{
@@ -32,6 +35,47 @@ const props = withDefaults(
     max: undefined,
   },
 );
+
+const resolveColor = (value: string) => {
+  if (typeof window === "undefined") {
+    return value;
+  }
+
+  if (value.startsWith("var(")) {
+    const match = value.match(/var\((--[^)]+)\)/);
+    if (!match) {
+      return value;
+    }
+    return window.getComputedStyle(document.documentElement).getPropertyValue(match[1]).trim() || value;
+  }
+
+  return value;
+};
+
+const toAlphaColor = (value: string) => {
+  const normalized = value.replace("#", "");
+  if (![3, 6].includes(normalized.length)) {
+    return "rgba(37,99,235,0.12)";
+  }
+
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((part) => `${part}${part}`)
+          .join("")
+      : normalized;
+
+  const red = Number.parseInt(expanded.slice(0, 2), 16);
+  const green = Number.parseInt(expanded.slice(2, 4), 16);
+  const blue = Number.parseInt(expanded.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, 0.12)`;
+};
+
+const resolvedColor = computed(() => {
+  void themeStore.currentTheme;
+  return resolveColor(props.color);
+});
 
 const option = computed(() => ({
   animationDuration: 300,
@@ -70,8 +114,8 @@ const option = computed(() => ({
       smooth: true,
       showSymbol: false,
       data: props.values,
-      lineStyle: { width: 3, color: props.color },
-      areaStyle: props.fill ? { color: `${props.color}22` } : undefined,
+      lineStyle: { width: 3, color: resolvedColor.value },
+      areaStyle: props.fill ? { color: toAlphaColor(resolvedColor.value) } : undefined,
     },
   ],
 }));

@@ -1,29 +1,31 @@
-import {
-  doctorDashboardFixture,
-  inviteFixture,
-  patientDetailsFixture,
-  patientFixture,
-  patientTasksFixture,
-  progressSeries,
-  protocolsFixture,
-} from "@/services/fixtures/data";
+import { registry } from "@/services/adapters/mockRegistry";
 import type { AuthGateway, DoctorGateway, PatientGateway } from "@/services/gateways/contracts";
-import type { AuthFormPayload, AuthSession, PatientTask } from "@/types/domain";
+import type { AuthFormPayload, AuthSession } from "@/types/domain";
 
 const delay = async (ms = 120) => new Promise((resolve) => setTimeout(resolve, ms));
 
-let taskState: PatientTask[] = [...patientTasksFixture];
+const makeSession = (role: AuthSession["role"], payload: AuthFormPayload): AuthSession => {
+  if (role === "doctor") {
+    return {
+      userId: "doctor-1",
+      role,
+      email: payload.email,
+      displayName: "Dr. Andi Setiawan",
+      consentAccepted: false,
+      patientStage: "dashboard",
+    };
+  }
 
-const makeSession = (role: AuthSession["role"], payload: AuthFormPayload): AuthSession => ({
-  role,
-  email: payload.email,
-  displayName:
-    role === "doctor"
-      ? "Dr. Andi Setiawan"
-      : `${payload.firstName ?? "Budi"} ${payload.lastName ?? "Santoso"}`.trim(),
-  consentAccepted: false,
-  patientStage: role === "patient" ? "invite" : "dashboard",
-});
+  const patient = registry.findPatientByEmail(payload.email);
+  return {
+    userId: patient.id,
+    role,
+    email: patient.email,
+    displayName: patient.name,
+    consentAccepted: false,
+    patientStage: "empty",
+  };
+};
 
 export const authGateway: AuthGateway = {
   async login(role, payload) {
@@ -40,44 +42,71 @@ export const authGateway: AuthGateway = {
 };
 
 export const patientGateway: PatientGateway = {
-  async getInvite() {
+  async getPendingInvite(patientId) {
     await delay();
-    return inviteFixture;
+    return registry.getPatientInvite(patientId);
   },
-  async getPatient() {
+  async acceptInvite(patientId) {
     await delay();
-    return patientFixture;
+    registry.acceptInvite(patientId);
   },
-  async getTasks() {
+  async getPatient(patientId) {
     await delay();
-    return [...taskState];
+    return registry.getPatientProfile(patientId);
   },
-  async updateTask(taskId, completed) {
+  async getTasks(patientId) {
     await delay();
-    taskState = taskState.map((task) => (task.id === taskId ? { ...task, completed } : task));
-    return [...taskState];
+    return registry.getPatientTasks(patientId);
   },
-  async getProgress() {
+  async updateTask(patientId, taskId, completed) {
     await delay();
-    return progressSeries;
+    return registry.updateTask(patientId, taskId, completed);
+  },
+  async getProgress(patientId) {
+    await delay();
+    return registry.getProgress(patientId);
+  },
+  async getMedicationPlan(patientId) {
+    await delay();
+    return registry.getMedicationPlan(patientId);
+  },
+  async getDietPlan(patientId) {
+    await delay();
+    return registry.getDietPlan(patientId);
+  },
+  async getCalendarEvents(patientId) {
+    await delay();
+    return registry.getCalendarEvents(patientId);
+  },
+  async getSleepSummary(patientId) {
+    await delay();
+    return registry.getSleepSummary(patientId);
   },
 };
 
 export const doctorGateway: DoctorGateway = {
   async getDashboard() {
     await delay();
-    return doctorDashboardFixture;
+    return registry.getDoctorDashboard();
+  },
+  async listDoctorPatients() {
+    await delay();
+    return registry.getDoctorDashboard().patients;
   },
   async getPatient(patientId) {
     await delay();
-    return patientDetailsFixture[patientId] ?? patientDetailsFixture.p1;
+    return registry.getPatientDetail(patientId);
   },
-  async getProtocols() {
+  async lookupPatientById(patientId) {
     await delay();
-    return protocolsFixture;
+    return registry.lookupPatientById(patientId);
   },
-  async createPatientInvitation() {
+  async saveDraftCarePlan(payload) {
     await delay();
-    return { patientId: "p-new" };
+    return registry.saveDraft(payload);
+  },
+  async finalizePendingInvite(payload) {
+    await delay();
+    return registry.finalizePendingInvite(payload);
   },
 };
