@@ -1,0 +1,113 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Manrope", sans-serif;
+}
+
+:root {
+  --bg-app: #f4f8ff;
+  --bg-elevated: rgba(255, 255, 255, 0.82);
+  --bg-soft: rgba(233, 242, 255, 0.72);
+  --bg-warm: rgba(255, 243, 199, 0.72);
+  --line-subtle: rgba(95, 130, 189, 0.12);
+  --text-primary: #0d1a2b;
+  --text-muted: #56708f;
+  --brand-blue: #1565d8;
+  --brand-blue-deep: #0f4dad;
+  --brand-yellow: #f0b429;
+  --shadow-soft: 0 18px 50px rgba(21, 101, 216, 0.08);
+  --shadow-warm: 0 18px 42px rgba(240, 180, 41, 0.13);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: light;
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(circle at top left, rgba(21, 101, 216, 0.12), transparent 32%),
+      radial-gradient(circle at top right, rgba(240, 180, 41, 0.13), transparent 24%),
+      linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    color: var(--text-primary);
+    background: transparent;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .surface-elevated {
+    background: var(--bg-elevated);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(20px);
+  }
+
+  .surface-soft {
+    background: var(--bg-soft);
+  }
+
+  .surface-warm {
+    background: var(--bg-warm);
+    box-shadow: var(--shadow-warm);
+  }
+
+  .soft-divider {
+    border-color: var(--line-subtle);
+  }
+
+  .page-title {
+    font-family: var(--font-display);
+    letter-spacing: -0.03em;
+  }
+
+  .eyebrow {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .muted-copy {
+    color: var(--text-muted);
+  }
+
+  .mesh-shell {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(21, 101, 216, 0.12), transparent 28%),
+      radial-gradient(circle at 100% 0%, rgba(240, 180, 41, 0.16), transparent 20%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(244, 248, 255, 0.88));
+  }
+
+  .route-fade-enter-active,
+  .route-fade-leave-active {
+    transition: opacity 200ms ease, transform 200ms ease;
+  }
+
+  .route-fade-enter-from,
+  .route-fade-leave-to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}

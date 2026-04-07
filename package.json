@@ -1,0 +1,14 @@
+{
+  "name": "asclepius",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @asclepius/web",
+    "build": "npm run build --workspace @asclepius/web",
+    "test": "npm run test --workspace @asclepius/web",
+    "lint": "npm run lint --workspace @asclepius/web"
+  }
+}
