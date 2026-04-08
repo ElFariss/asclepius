@@ -3,57 +3,65 @@ import { defineStore } from "pinia";
 
 import type { ThemeMode } from "@/types/domain";
 
-const STORAGE_KEY = "asclepius-theme";
+const THEME_STORAGE_KEY = "asclepius-theme";
+const ACCENT_STORAGE_KEY = "asclepius-accent";
+const FIXED_THEME: ThemeMode = "blue-medical";
+const FIXED_ACCENT = "#2563eb";
 
 const readTheme = (): ThemeMode => {
-  if (typeof window === "undefined") {
-    return "blue-medical";
-  }
-
-  const raw = window.localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
-  return raw ?? "blue-medical";
+  return FIXED_THEME;
 };
 
-const applyTheme = (theme: ThemeMode) => {
+const readAccentColor = () => FIXED_ACCENT;
+
+const applyTheme = (theme: ThemeMode, accentColor: string) => {
   if (typeof document === "undefined") {
     return;
   }
 
   document.documentElement.dataset.theme = theme;
+  document.documentElement.style.setProperty("--theme-accent-override", accentColor);
 };
 
 export const useThemeStore = defineStore("theme", () => {
   const currentTheme = ref<ThemeMode>(readTheme());
-  const settingsOpen = ref(false);
+  const accentColor = ref(readAccentColor());
 
   watch(
-    currentTheme,
-    (value) => {
+    [currentTheme, accentColor],
+    () => {
+      currentTheme.value = FIXED_THEME;
+      accentColor.value = FIXED_ACCENT;
       if (typeof window !== "undefined") {
-        window.localStorage.setItem(STORAGE_KEY, value);
+        window.localStorage.setItem(THEME_STORAGE_KEY, FIXED_THEME);
+        window.localStorage.setItem(ACCENT_STORAGE_KEY, FIXED_ACCENT);
       }
-      applyTheme(value);
+      applyTheme(FIXED_THEME, FIXED_ACCENT);
     },
     { immediate: true, flush: "sync" },
   );
 
-  const themeLabel = computed(() =>
-    currentTheme.value === "blue-medical" ? "Blue Medical" : "Green Forest",
-  );
+  const themeLabel = computed(() => "Blue Medical");
 
-  const setTheme = (theme: ThemeMode) => {
-    currentTheme.value = theme;
+  const setTheme = (_theme: ThemeMode) => {
+    currentTheme.value = FIXED_THEME;
   };
 
-  const toggleSettings = (open?: boolean) => {
-    settingsOpen.value = typeof open === "boolean" ? open : !settingsOpen.value;
+  const setAccentColor = (_value: string) => {
+    accentColor.value = FIXED_ACCENT;
+  };
+
+  const hydrateFromProfile = (_theme: ThemeMode, _accent: string) => {
+    currentTheme.value = FIXED_THEME;
+    accentColor.value = FIXED_ACCENT;
   };
 
   return {
+    accentColor,
     currentTheme,
+    hydrateFromProfile,
+    setAccentColor,
     setTheme,
-    settingsOpen,
     themeLabel,
-    toggleSettings,
   };
 });

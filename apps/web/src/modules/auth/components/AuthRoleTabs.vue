@@ -38,7 +38,7 @@ const tabClass = (role: UserRole) =>
   cn(
     "flex-1 rounded-xl py-3 text-xs font-bold transition-all",
     currentRole.value === role
-      ? "bg-white text-blue-600 shadow-sm"
+      ? "bg-white theme-accent-text shadow-sm"
       : "text-slate-500",
   );
 </script>

@@ -26,7 +26,7 @@
           </div>
           <div
             class="rounded-full px-4 py-2 text-sm font-semibold"
-            :class="patientStore.sleep.meetsTarget ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'"
+            :class="patientStore.sleep.meetsTarget ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'"
           >
             {{ patientStore.sleep.meetsTarget ? "Enough sleep" : "Below target" }}
           </div>
@@ -38,7 +38,7 @@
             :labels="labels"
             :max="10"
             :values="hours"
-            :color="patientStore.sleep.meetsTarget ? '#16a34a' : '#ef4444'"
+            :color="patientStore.sleep.meetsTarget ? '#2563eb' : '#ef4444'"
           />
         </div>
       </div>

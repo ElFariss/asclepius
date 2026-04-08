@@ -91,7 +91,7 @@ const items = [
 ];
 
 const acceptConsent = async () => {
-  sessionStore.acceptConsent();
+  await sessionStore.acceptConsent();
   await router.push("/patient/dashboard");
 };
 </script>

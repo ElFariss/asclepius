@@ -1,366 +1,357 @@
 <template>
-  <div class="flex h-full flex-col bg-white">
-    <div class="border-b border-slate-100 p-6">
+  <div class="min-h-screen bg-[color:var(--surface-page)] px-4 py-6 md:px-8">
+    <div class="w-full space-y-6">
       <div class="flex items-center gap-4">
         <button
-          class="rounded-full p-2 transition-colors hover:bg-slate-100"
+          class="rounded-full border border-slate-200 bg-white p-3 text-slate-500 transition hover:text-slate-900"
           type="button"
           @click="goBack"
         >
-          <ArrowLeft :size="20" />
+          <ArrowLeft :size="18" />
         </button>
         <div>
-          <h2 class="page-title text-xl font-bold">Add New Patient</h2>
-          <p class="mt-1 text-sm text-slate-500">Build a pending care plan that the patient will accept from their mail page.</p>
+          <p class="eyebrow">New patient</p>
+          <h1 class="page-title text-2xl font-bold text-slate-900">Add patient</h1>
         </div>
       </div>
 
-      <div class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div class="grid grid-cols-5 gap-3">
         <div
-          v-for="(item, index) in steps"
-          :key="item"
-          class="rounded-[1.25rem] px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.18em]"
-          :class="index <= stepIndex ? 'theme-accent-soft' : 'bg-slate-100 text-slate-400'"
-        >
-          {{ item }}
-        </div>
+          v-for="(_, index) in 5"
+          :key="index"
+          class="h-2.5 rounded-full"
+          :class="index <= stepIndex ? 'theme-accent-bg' : 'bg-slate-200'"
+        />
       </div>
-    </div>
 
-    <div class="flex-1 overflow-y-auto p-6">
-      <div
-        v-if="currentStep === 'lookup'"
-        class="mx-auto max-w-2xl space-y-6"
-      >
-        <div class="space-y-2">
-          <p class="eyebrow">Step 1</p>
-          <h3 class="page-title text-2xl font-bold">Find patient by ID</h3>
-          <p class="text-sm leading-7 text-slate-500">
-            Enter the patient ID, check that the record matches the correct person, then confirm attaching them to your care plan workflow.
-          </p>
-        </div>
-
-        <div class="space-y-4 rounded-[2rem] border border-slate-100 bg-slate-50 p-6">
-          <input
-            v-model="lookupId"
-            class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm outline-none transition focus:ring-2 focus:ring-[var(--theme-primary)]"
-            placeholder="Patient ID (e.g. p1)"
-          />
-          <button
-            class="theme-accent-bg w-full rounded-2xl py-4 text-sm font-semibold"
-            type="button"
-            @click="checkPatient"
-          >
-            Check Patient
-          </button>
-        </div>
-
+      <section class="rounded-[2rem] bg-white p-6 shadow-2xl shadow-slate-200/60 md:p-8">
         <div
-          v-if="lookupError"
-          class="rounded-[1.5rem] border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"
+          v-if="currentStep === 'lookup'"
+          class="w-full space-y-6"
         >
-          {{ lookupError }}
-        </div>
-
-        <div
-          v-if="doctorStore.lookupResult"
-          class="space-y-4 rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm"
-        >
-          <p class="eyebrow">Matched patient</p>
-          <div class="space-y-2">
-            <p class="page-title text-2xl font-bold text-slate-900">{{ doctorStore.lookupResult.name }}</p>
-            <p class="text-sm text-slate-500">{{ doctorStore.lookupResult.id }} • {{ doctorStore.lookupResult.procedure }}</p>
-            <p class="text-sm text-slate-500">{{ doctorStore.lookupResult.specialty }}</p>
+          <div>
+            <p class="eyebrow">Step 1</p>
+            <h2 class="page-title text-2xl font-bold text-slate-900">Find patient by ID</h2>
+            <p class="mt-2 text-sm leading-7 text-slate-500">Enter the patient ID and verify the profile before continuing.</p>
           </div>
-          <button
-            class="theme-accent-bg w-full rounded-2xl py-4 text-sm font-semibold"
-            type="button"
-            @click="confirmLookup"
-          >
-            Confirm Patient
-          </button>
-        </div>
-      </div>
 
-      <div
-        v-else-if="currentStep === 'surgery'"
-        class="mx-auto max-w-4xl space-y-6"
-      >
-        <div class="space-y-2">
-          <p class="eyebrow">Step 2</p>
-          <h3 class="page-title text-2xl font-bold">Surgery plan</h3>
-          <p class="text-sm leading-7 text-slate-500">
-            Upload the surgery plan in PDF or DOCX format, preview it, and confirm the operation date for this patient.
-          </p>
-        </div>
-
-        <div class="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-          <div class="space-y-5 rounded-[2rem] border border-slate-100 bg-slate-50 p-6">
-            <div>
-              <p class="eyebrow">Patient</p>
-              <p class="mt-2 text-lg font-semibold text-slate-900">{{ doctorStore.lookupResult?.name }}</p>
-              <p class="text-sm text-slate-500">{{ doctorStore.lookupResult?.procedure }}</p>
-            </div>
-
-            <label class="block space-y-2">
-              <span class="eyebrow">Upload surgery plan</span>
-              <input
-                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
-                type="file"
-                @change="handleFileUpload"
-              />
-            </label>
-
-            <label class="block space-y-2">
-              <span class="eyebrow">Confirmed operation date</span>
-              <input
-                v-model="surgeryDate"
-                class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm outline-none transition focus:ring-2 focus:ring-[var(--theme-primary)]"
-                type="date"
-              />
-            </label>
-
+          <div class="space-y-4 rounded-[1.8rem] bg-[color:var(--surface-subtle)] p-5">
+            <input
+              v-model="lookupId"
+              class="w-full rounded-[1.35rem] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-900"
+              placeholder="Patient ID (for example p1)"
+              type="text"
+            />
             <button
-              class="theme-accent-bg w-full rounded-2xl py-4 text-sm font-semibold"
+              class="theme-accent-bg w-full rounded-[1.35rem] px-4 py-4 text-sm font-semibold"
               type="button"
-              @click="confirmSurgery"
+              @click="checkPatient"
             >
-              Confirm Surgery Plan
+              Check patient
             </button>
           </div>
 
-          <DocumentViewer :document="doctorStore.currentDraft.surgeryDocument" />
-        </div>
-      </div>
-
-      <div
-        v-else-if="currentStep === 'medicine'"
-        class="mx-auto max-w-4xl space-y-6"
-      >
-        <div class="space-y-2">
-          <p class="eyebrow">Step 3</p>
-          <h3 class="page-title text-2xl font-bold">Medicine plan</h3>
-          <p class="text-sm leading-7 text-slate-500">
-            Add each drug with its description, dose, frequency, and whether it should be taken before or after eating.
-          </p>
-        </div>
-
-        <div
-          v-if="!doctorStore.currentDraft.medications.length"
-          class="flex min-h-64 items-center justify-center rounded-[2rem] border border-dashed border-slate-300 bg-slate-50"
-        >
-          <button
-            class="theme-accent-bg flex h-20 w-20 items-center justify-center rounded-full text-white"
-            type="button"
-            @click="openMedicationModal()"
-          >
-            <Plus :size="28" />
-          </button>
-        </div>
-
-        <div
-          v-else
-          class="space-y-4"
-        >
           <div
-            v-for="medication in doctorStore.currentDraft.medications"
-            :key="medication.id"
-            class="rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm"
+            v-if="lookupError"
+            class="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700"
           >
-            <div class="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p class="text-lg font-semibold text-slate-900">{{ medication.name }}</p>
-                <p class="mt-2 text-sm leading-7 text-slate-500">{{ medication.description }}</p>
-                <p class="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                  {{ medication.schedule.amount }} • {{ medication.schedule.frequency }} •
-                  {{ medication.schedule.mealTiming === "before-eating" ? "Before eating" : "After eating" }}
-                </p>
-              </div>
-              <div class="flex gap-2">
-                <button
-                  class="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-700"
-                  type="button"
-                  @click="openMedicationModal(medication)"
-                >
-                  Edit
-                </button>
-                <button
-                  class="rounded-full bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700"
-                  type="button"
-                  @click="removeMedication(medication.id)"
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
+            {{ lookupError }}
           </div>
 
-          <button
-            class="theme-accent-bg mx-auto flex h-14 w-14 items-center justify-center rounded-full"
-            type="button"
-            @click="openMedicationModal()"
-          >
-            <Plus :size="24" />
-          </button>
-        </div>
-
-        <button
-          class="theme-accent-bg w-full rounded-2xl py-4 text-sm font-semibold"
-          type="button"
-          @click="confirmMedicines"
-        >
-          Done With Medicine
-        </button>
-      </div>
-
-      <div
-        v-else-if="currentStep === 'diet'"
-        class="mx-auto max-w-4xl space-y-6"
-      >
-        <div class="space-y-2">
-          <p class="eyebrow">Step 4</p>
-          <h3 class="page-title text-2xl font-bold">Diet plan</h3>
-          <p class="text-sm leading-7 text-slate-500">
-            Add foods, mark whether they are mandatory, recommended, or not allowed, and confirm the full diet plan.
-          </p>
-        </div>
-
-        <div
-          v-if="!sortedDiet.length"
-          class="flex min-h-64 items-center justify-center rounded-[2rem] border border-dashed border-slate-300 bg-slate-50"
-        >
-          <button
-            class="theme-accent-bg flex h-20 w-20 items-center justify-center rounded-full text-white"
-            type="button"
-            @click="openDietModal()"
-          >
-            <Plus :size="28" />
-          </button>
-        </div>
-
-        <div
-          v-else
-          class="space-y-4"
-        >
           <div
-            v-for="dietItem in sortedDiet"
-            :key="dietItem.id"
-            class="rounded-[2rem] p-5"
-            :class="dietClassName(dietItem.type)"
+            v-if="doctorStore.lookupResult"
+            class="rounded-[1.8rem] bg-white p-5 shadow-xl shadow-slate-200/50"
           >
-            <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-4">
+              <div class="h-14 w-14 overflow-hidden rounded-2xl bg-slate-100">
+                <img
+                  v-if="doctorStore.lookupResult.avatarUrl"
+                  :src="doctorStore.lookupResult.avatarUrl"
+                  alt="Patient profile"
+                  class="h-full w-full object-cover"
+                />
+                <div
+                  v-else
+                  class="theme-accent-soft flex h-full w-full items-center justify-center text-lg font-bold"
+                >
+                  {{ doctorStore.lookupResult.name.charAt(0) }}
+                </div>
+              </div>
               <div>
-                <p class="text-lg font-semibold">{{ dietItem.name }}</p>
-                <p class="mt-2 text-xs font-bold uppercase tracking-[0.18em]">
-                  {{ dietItem.type.replace('-', ' ') }}
-                </p>
-              </div>
-              <div class="flex gap-2">
-                <button
-                  class="rounded-full bg-white/70 px-4 py-2 text-xs font-semibold text-slate-700"
-                  type="button"
-                  @click="openDietModal(dietItem)"
-                >
-                  Edit
-                </button>
-                <button
-                  class="rounded-full bg-white/70 px-4 py-2 text-xs font-semibold text-rose-700"
-                  type="button"
-                  @click="removeDietItem(dietItem.id)"
-                >
-                  Remove
-                </button>
+                <p class="page-title text-xl font-bold text-slate-900">{{ doctorStore.lookupResult.name }}</p>
+                <p class="text-sm text-slate-500">{{ doctorStore.lookupResult.id }} • {{ doctorStore.lookupResult.procedure }}</p>
+                <p class="text-sm text-slate-400">{{ doctorStore.lookupResult.specialty }}</p>
               </div>
             </div>
-          </div>
 
-          <button
-            class="theme-accent-bg mx-auto flex h-14 w-14 items-center justify-center rounded-full"
-            type="button"
-            @click="openDietModal()"
-          >
-            <Plus :size="24" />
-          </button>
+            <button
+              class="theme-accent-bg mt-5 w-full rounded-[1.35rem] px-4 py-4 text-sm font-semibold"
+              type="button"
+              @click="openConfirmation('lookup')"
+            >
+              Confirm patient
+            </button>
+          </div>
         </div>
 
-        <button
-          class="theme-accent-bg w-full rounded-2xl py-4 text-sm font-semibold"
-          type="button"
-          @click="confirmDiet"
+        <div
+          v-else-if="currentStep === 'surgery'"
+          class="space-y-6"
         >
-          Done With Diet
-        </button>
-      </div>
-
-      <div
-        v-else
-        class="mx-auto max-w-4xl space-y-6"
-      >
-        <div class="space-y-2">
-          <p class="eyebrow">Step 5</p>
-          <h3 class="page-title text-2xl font-bold">Patient details</h3>
-          <p class="text-sm leading-7 text-slate-500">
-            Review the full care plan, then confirm the pending invite. The patient will receive it on their mail page and it will stay yellow until accepted.
-          </p>
-        </div>
-
-        <div class="space-y-5 rounded-[2rem] border border-slate-100 bg-slate-50 p-6">
-          <div class="grid gap-5 md:grid-cols-2">
-            <div>
-              <p class="eyebrow">Patient</p>
-              <p class="mt-2 text-lg font-semibold text-slate-900">{{ doctorStore.lookupResult?.name }}</p>
-              <p class="text-sm text-slate-500">{{ doctorStore.lookupResult?.id }} • {{ doctorStore.lookupResult?.procedure }}</p>
-            </div>
-            <div>
-              <p class="eyebrow">Surgery date</p>
-              <p class="mt-2 text-lg font-semibold text-slate-900">{{ formattedSurgeryDate }}</p>
-              <p class="text-sm text-slate-500">{{ doctorStore.currentDraft.surgeryDocument?.name }}</p>
-            </div>
+          <div>
+            <p class="eyebrow">Step 2</p>
+            <h2 class="page-title text-2xl font-bold text-slate-900">Surgery plan</h2>
+            <p class="mt-2 text-sm leading-7 text-slate-500">Upload the document, preview it, and choose the surgery date with the custom calendar picker.</p>
           </div>
 
-          <div class="space-y-3">
-            <p class="eyebrow">Medicine</p>
+          <div class="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+            <div class="space-y-5 rounded-[1.8rem] bg-[color:var(--surface-subtle)] p-6">
+              <label class="block space-y-2">
+                <span class="eyebrow">Upload surgery plan</span>
+                <input
+                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-900 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-white"
+                  type="file"
+                  @change="handleFileUpload"
+                />
+              </label>
+
+              <div class="space-y-2">
+                <span class="eyebrow">Confirmed operation date</span>
+                <DatePickerField
+                  v-model="surgeryDate"
+                  placeholder="Choose surgery date"
+                />
+              </div>
+
+              <button
+                class="theme-accent-bg w-full rounded-[1.35rem] px-4 py-4 text-sm font-semibold"
+                type="button"
+                @click="openConfirmation('surgery')"
+              >
+                Confirm surgery plan
+              </button>
+            </div>
+
+            <DocumentViewer :document="doctorStore.currentDraft.surgeryDocument" />
+          </div>
+        </div>
+
+        <div
+          v-else-if="currentStep === 'medicine'"
+          class="space-y-6"
+        >
+          <div>
+            <p class="eyebrow">Step 3</p>
+            <h2 class="page-title text-2xl font-bold text-slate-900">Medicine plan</h2>
+            <p class="mt-2 text-sm leading-7 text-slate-500">Build the medication list with dose, frequency, and before or after eating instructions.</p>
+          </div>
+
+          <div
+            v-if="!doctorStore.currentDraft.medications.length"
+            class="flex min-h-64 items-center justify-center rounded-[1.8rem] border border-dashed border-slate-300 bg-[color:var(--surface-subtle)]"
+          >
+            <button
+              class="theme-accent-bg flex h-20 w-20 items-center justify-center rounded-full text-white"
+              type="button"
+              @click="openMedicationModal()"
+            >
+              <Plus :size="28" />
+            </button>
+          </div>
+
+          <div
+            v-else
+            class="space-y-4"
+          >
             <div
               v-for="medication in doctorStore.currentDraft.medications"
               :key="medication.id"
-              class="rounded-[1.5rem] bg-white p-4"
+              class="rounded-[1.8rem] bg-white p-5 shadow-xl shadow-slate-200/50"
             >
-              <p class="font-semibold text-slate-900">{{ medication.name }}</p>
-              <p class="mt-1 text-sm leading-7 text-slate-500">{{ medication.description }}</p>
-              <p class="mt-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                {{ medication.schedule.amount }} • {{ medication.schedule.frequency }} •
-                {{ medication.schedule.mealTiming === "before-eating" ? "Before eating" : "After eating" }}
-              </p>
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <p class="text-lg font-semibold text-slate-900">{{ medication.name }}</p>
+                  <p class="mt-2 text-sm leading-7 text-slate-600">{{ medication.description }}</p>
+                  <p class="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                    {{ medication.schedule.amount }} • {{ medication.schedule.frequency }} •
+                    {{ medication.schedule.mealTiming === "before-eating" ? "Before eating" : "After eating" }}
+                  </p>
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    class="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-700"
+                    type="button"
+                    @click="openMedicationModal(medication)"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    class="rounded-full bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700"
+                    type="button"
+                    @click="removeMedication(medication.id)"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
             </div>
+
+            <button
+              class="theme-accent-bg mx-auto flex h-14 w-14 items-center justify-center rounded-full"
+              type="button"
+              @click="openMedicationModal()"
+            >
+              <Plus :size="24" />
+            </button>
           </div>
 
-          <div class="space-y-3">
-            <p class="eyebrow">Diet</p>
+          <button
+            class="theme-accent-bg w-full rounded-[1.35rem] px-4 py-4 text-sm font-semibold"
+            type="button"
+            @click="openConfirmation('medicine')"
+          >
+            Done with medicine
+          </button>
+        </div>
+
+        <div
+          v-else-if="currentStep === 'diet'"
+          class="space-y-6"
+        >
+          <div>
+            <p class="eyebrow">Step 4</p>
+            <h2 class="page-title text-2xl font-bold text-slate-900">Diet plan</h2>
+            <p class="mt-2 text-sm leading-7 text-slate-500">Sort food guidance into mandatory, recommended, and not allowed lists.</p>
+          </div>
+
+          <div
+            v-if="!sortedDiet.length"
+            class="flex min-h-64 items-center justify-center rounded-[1.8rem] border border-dashed border-slate-300 bg-[color:var(--surface-subtle)]"
+          >
+            <button
+              class="theme-accent-bg flex h-20 w-20 items-center justify-center rounded-full text-white"
+              type="button"
+              @click="openDietModal()"
+            >
+              <Plus :size="28" />
+            </button>
+          </div>
+
+          <div
+            v-else
+            class="space-y-4"
+          >
             <div
               v-for="dietItem in sortedDiet"
               :key="dietItem.id"
-              class="rounded-[1.5rem] px-4 py-3"
+              class="rounded-[1.8rem] p-5 shadow-xl shadow-slate-200/30"
               :class="dietClassName(dietItem.type)"
             >
-              <p class="font-semibold">{{ dietItem.name }}</p>
-              <p class="mt-1 text-xs font-bold uppercase tracking-[0.18em]">{{ dietItem.type.replace('-', ' ') }}</p>
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-lg font-semibold">{{ dietItem.name }}</p>
+                  <p class="mt-2 text-xs font-bold uppercase tracking-[0.18em]">{{ dietItem.type.replace('-', ' ') }}</p>
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    class="rounded-full bg-white/75 px-4 py-2 text-xs font-semibold text-slate-700"
+                    type="button"
+                    @click="openDietModal(dietItem)"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    class="rounded-full bg-white/75 px-4 py-2 text-xs font-semibold text-rose-700"
+                    type="button"
+                    @click="removeDietItem(dietItem.id)"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
             </div>
+
+            <button
+              class="theme-accent-bg mx-auto flex h-14 w-14 items-center justify-center rounded-full"
+              type="button"
+              @click="openDietModal()"
+            >
+              <Plus :size="24" />
+            </button>
           </div>
+
+          <button
+            class="theme-accent-bg w-full rounded-[1.35rem] px-4 py-4 text-sm font-semibold"
+            type="button"
+            @click="openConfirmation('diet')"
+          >
+            Done with diet
+          </button>
         </div>
 
-        <button
-          class="theme-accent-bg w-full rounded-2xl py-4 text-sm font-semibold"
-          type="button"
-          @click="finalizeInvite"
+        <div
+          v-else
+          class="space-y-6"
         >
-          Create Pending Invite
-        </button>
-      </div>
+          <div>
+            <p class="eyebrow">Step 5</p>
+            <h2 class="page-title text-2xl font-bold text-slate-900">Patient details</h2>
+            <p class="mt-2 text-sm leading-7 text-slate-500">Review the final summary before creating the pending invite.</p>
+          </div>
+
+          <div class="space-y-5 rounded-[1.8rem] bg-[color:var(--surface-subtle)] p-6">
+            <div class="grid gap-5 md:grid-cols-2">
+              <div>
+                <p class="eyebrow">Patient</p>
+                <p class="mt-2 text-lg font-semibold text-slate-900">{{ doctorStore.lookupResult?.name }}</p>
+                <p class="text-sm text-slate-500">{{ doctorStore.lookupResult?.id }} • {{ doctorStore.lookupResult?.procedure }}</p>
+              </div>
+              <div>
+                <p class="eyebrow">Surgery date</p>
+                <p class="mt-2 text-lg font-semibold text-slate-900">{{ formattedSurgeryDate }}</p>
+                <p class="text-sm text-slate-500">{{ doctorStore.currentDraft.surgeryDocument?.name }}</p>
+              </div>
+            </div>
+
+            <div class="space-y-3">
+              <p class="eyebrow">Medicine</p>
+              <div
+                v-for="medication in doctorStore.currentDraft.medications"
+                :key="medication.id"
+                class="rounded-[1.4rem] bg-white p-4"
+              >
+                <p class="font-semibold text-slate-900">{{ medication.name }}</p>
+                <p class="mt-2 text-sm text-slate-600">{{ medication.description }}</p>
+              </div>
+            </div>
+
+            <div class="space-y-3">
+              <p class="eyebrow">Diet</p>
+              <div
+                v-for="dietItem in sortedDiet"
+                :key="dietItem.id"
+                class="rounded-[1.4rem] px-4 py-3"
+                :class="dietClassName(dietItem.type)"
+              >
+                <p class="font-semibold">{{ dietItem.name }}</p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            class="theme-accent-bg w-full rounded-[1.35rem] px-4 py-4 text-sm font-semibold"
+            type="button"
+            @click="openConfirmation('summary')"
+          >
+            Create pending invite
+          </button>
+        </div>
+      </section>
     </div>
 
     <ModalShell
-      :description="medicineStep === 1 ? 'Start with the drug name and basic instructions.' : 'Set the dose and meal timing for this drug.'"
+      :description="medicineStep === 1 ? 'Start with the drug name and its description.' : 'Set the dose amount, frequency, and meal timing.'"
       :open="medicineModalOpen"
       title="Add medicine"
       @close="closeMedicineModal"
@@ -371,20 +362,21 @@
             <span class="eyebrow">Drug name</span>
             <input
               v-model="medicineForm.name"
-              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm outline-none transition focus:ring-2 focus:ring-[var(--theme-primary)]"
+              class="w-full rounded-[1.35rem] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-900"
               placeholder="Drug name"
+              type="text"
             />
           </label>
           <label class="block space-y-2">
             <span class="eyebrow">Description</span>
             <textarea
               v-model="medicineForm.description"
-              class="min-h-32 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm outline-none transition focus:ring-2 focus:ring-[var(--theme-primary)]"
-              placeholder="Describe how the patient should take this drug"
+              class="min-h-32 w-full rounded-[1.35rem] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-900"
+              placeholder="How should the patient take this drug?"
             />
           </label>
           <button
-            class="theme-accent-bg w-full rounded-2xl py-4 text-sm font-semibold"
+            class="theme-accent-bg w-full rounded-[1.35rem] px-4 py-4 text-sm font-semibold"
             type="button"
             @click="medicineStep = 2"
           >
@@ -394,27 +386,29 @@
 
         <template v-else>
           <div class="grid gap-4 md:grid-cols-2">
-            <label class="block space-y-2">
+            <label class="space-y-2">
               <span class="eyebrow">Amount</span>
               <input
                 v-model="medicineForm.amount"
-                class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm outline-none transition focus:ring-2 focus:ring-[var(--theme-primary)]"
-                placeholder="e.g. 2 tablets"
+                class="w-full rounded-[1.35rem] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-900"
+                placeholder="2 tablets"
+                type="text"
               />
             </label>
-            <label class="block space-y-2">
+            <label class="space-y-2">
               <span class="eyebrow">Frequency</span>
               <input
                 v-model="medicineForm.frequency"
-                class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm outline-none transition focus:ring-2 focus:ring-[var(--theme-primary)]"
-                placeholder="e.g. every 4 days"
+                class="w-full rounded-[1.35rem] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-900"
+                placeholder="every 4 days"
+                type="text"
               />
             </label>
           </div>
 
           <div class="space-y-3">
             <p class="eyebrow">Meal timing</p>
-            <label class="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3">
+            <label class="flex items-center gap-3 rounded-[1.35rem] border border-slate-200 px-4 py-4">
               <input
                 v-model="medicineForm.mealTiming"
                 type="radio"
@@ -422,7 +416,7 @@
               />
               <span class="text-sm text-slate-700">Take before eating</span>
             </label>
-            <label class="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3">
+            <label class="flex items-center gap-3 rounded-[1.35rem] border border-slate-200 px-4 py-4">
               <input
                 v-model="medicineForm.mealTiming"
                 type="radio"
@@ -434,14 +428,14 @@
 
           <div class="flex gap-3">
             <button
-              class="w-full rounded-2xl bg-slate-100 py-4 text-sm font-semibold text-slate-700"
+              class="w-full rounded-[1.35rem] bg-slate-100 px-4 py-4 text-sm font-semibold text-slate-700"
               type="button"
               @click="medicineStep = 1"
             >
               Back
             </button>
             <button
-              class="theme-accent-bg w-full rounded-2xl py-4 text-sm font-semibold"
+              class="theme-accent-bg w-full rounded-[1.35rem] px-4 py-4 text-sm font-semibold"
               type="button"
               @click="saveMedicine"
             >
@@ -454,7 +448,7 @@
 
     <ModalShell
       :open="dietModalOpen"
-      description="Add a food item and classify whether it is mandatory, recommended, or not allowed."
+      description="Add a food and classify it as mandatory, recommended, or not allowed."
       title="Add food"
       @close="closeDietModal"
     >
@@ -463,14 +457,15 @@
           <span class="eyebrow">Food name</span>
           <input
             v-model="dietForm.name"
-            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm outline-none transition focus:ring-2 focus:ring-[var(--theme-primary)]"
+            class="w-full rounded-[1.35rem] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-900"
             placeholder="Food name"
+            type="text"
           />
         </label>
 
         <div class="space-y-3">
           <p class="eyebrow">Type</p>
-          <label class="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3">
+          <label class="flex items-center gap-3 rounded-[1.35rem] border border-slate-200 px-4 py-4">
             <input
               v-model="dietForm.type"
               type="radio"
@@ -478,7 +473,7 @@
             />
             <span class="text-sm text-slate-700">Mandatory</span>
           </label>
-          <label class="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3">
+          <label class="flex items-center gap-3 rounded-[1.35rem] border border-slate-200 px-4 py-4">
             <input
               v-model="dietForm.type"
               type="radio"
@@ -486,7 +481,7 @@
             />
             <span class="text-sm text-slate-700">Recommended</span>
           </label>
-          <label class="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3">
+          <label class="flex items-center gap-3 rounded-[1.35rem] border border-slate-200 px-4 py-4">
             <input
               v-model="dietForm.type"
               type="radio"
@@ -497,7 +492,7 @@
         </div>
 
         <button
-          class="theme-accent-bg w-full rounded-2xl py-4 text-sm font-semibold"
+          class="theme-accent-bg w-full rounded-[1.35rem] px-4 py-4 text-sm font-semibold"
           type="button"
           @click="saveDiet"
         >
@@ -505,6 +500,15 @@
         </button>
       </div>
     </ModalShell>
+
+    <ConfirmationDialog
+      :confirm-label="confirmLabel"
+      :message="confirmMessage"
+      :open="Boolean(confirmStep)"
+      title="Confirm action"
+      @cancel="confirmStep = null"
+      @confirm="handleConfirmation"
+    />
   </div>
 </template>
 
@@ -513,13 +517,16 @@ import { computed, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ArrowLeft, Plus } from "lucide-vue-next";
 
+import DatePickerField from "@/components/calendar/DatePickerField.vue";
 import DocumentViewer from "@/components/ui/DocumentViewer.vue";
 import ModalShell from "@/components/ui/ModalShell.vue";
+import ConfirmationDialog from "@/components/ui/ConfirmationDialog.vue";
 import { dietClassName, sortDietItems } from "@/modules/shared/utils/carePlan";
 import { useDoctorStore } from "@/stores/doctor";
 import type { DietItem, MedicationPlan, SurgeryPlanDocument } from "@/types/domain";
 
 type WizardStep = "lookup" | "surgery" | "medicine" | "diet" | "summary";
+type ConfirmStep = WizardStep | null;
 
 const doctorStore = useDoctorStore();
 const router = useRouter();
@@ -529,6 +536,7 @@ const stepIndex = ref(0);
 const lookupId = ref("");
 const lookupError = ref("");
 const surgeryDate = ref("");
+const confirmStep = ref<ConfirmStep>(null);
 
 const medicineModalOpen = ref(false);
 const medicineStep = ref(1);
@@ -552,9 +560,28 @@ const currentStep = computed(() => steps[stepIndex.value]);
 const sortedDiet = computed(() => sortDietItems(doctorStore.currentDraft.diet));
 const formattedSurgeryDate = computed(() =>
   surgeryDate.value
-    ? new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date(`${surgeryDate.value}T08:00:00.000Z`))
+    ? new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date(`${surgeryDate.value}T00:00:00`))
     : "Not set",
 );
+
+const confirmMessage = computed(() => {
+  switch (confirmStep.value) {
+    case "lookup":
+      return `Attach ${doctorStore.lookupResult?.name ?? "this patient"} to the current care plan flow?`;
+    case "surgery":
+      return "Does the uploaded surgery plan and selected surgery date look correct?";
+    case "medicine":
+      return "Is the medicine plan correct and ready for the next step?";
+    case "diet":
+      return "Is the diet guidance correct and ready for the summary?";
+    case "summary":
+      return "Create the pending invite for this patient now?";
+    default:
+      return "";
+  }
+});
+
+const confirmLabel = computed(() => (confirmStep.value === "summary" ? "Create invite" : "Continue"));
 
 const fileToDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -569,26 +596,48 @@ const goBack = () => {
   void router.push("/doctor/dashboard");
 };
 
+const openConfirmation = (step: WizardStep) => {
+  confirmStep.value = step;
+};
+
+const handleConfirmation = async () => {
+  if (!confirmStep.value) {
+    return;
+  }
+
+  if (confirmStep.value === "lookup" && doctorStore.lookupResult) {
+    doctorStore.setDraft({ patientId: doctorStore.lookupResult.id });
+    stepIndex.value = 1;
+  }
+
+  if (confirmStep.value === "surgery" && doctorStore.currentDraft.surgeryDocument && surgeryDate.value) {
+    doctorStore.setDraft({ surgeryDate: surgeryDate.value });
+    stepIndex.value = 2;
+  }
+
+  if (confirmStep.value === "medicine" && doctorStore.currentDraft.medications.length) {
+    stepIndex.value = 3;
+  }
+
+  if (confirmStep.value === "diet" && doctorStore.currentDraft.diet.length) {
+    stepIndex.value = 4;
+  }
+
+  if (confirmStep.value === "summary") {
+    await doctorStore.finalizePendingInvite();
+    doctorStore.resetDraft();
+    await router.push("/doctor/dashboard");
+  }
+
+  confirmStep.value = null;
+};
+
 const checkPatient = async () => {
   lookupError.value = "";
   const patient = await doctorStore.lookupPatient(lookupId.value.trim());
   if (!patient) {
     lookupError.value = "No patient matched that ID. Try one of the seeded demo IDs such as p1, p2, p3, or p4.";
   }
-};
-
-const confirmLookup = async () => {
-  if (!doctorStore.lookupResult) {
-    return;
-  }
-
-  if (!window.confirm(`Add ${doctorStore.lookupResult.name} to this new care plan flow?`)) {
-    return;
-  }
-
-  doctorStore.setDraft({ patientId: doctorStore.lookupResult.id });
-  await doctorStore.saveDraft();
-  stepIndex.value = 1;
 };
 
 const handleFileUpload = async (event: Event) => {
@@ -612,20 +661,6 @@ const handleFileUpload = async (event: Event) => {
     data: await fileToDataUrl(file),
   };
   doctorStore.setDraft({ surgeryDocument: document });
-};
-
-const confirmSurgery = async () => {
-  if (!doctorStore.currentDraft.surgeryDocument || !surgeryDate.value) {
-    return;
-  }
-
-  if (!window.confirm("Does the uploaded surgery plan and confirmed operation date look correct?")) {
-    return;
-  }
-
-  doctorStore.setDraft({ surgeryDate: surgeryDate.value });
-  await doctorStore.saveDraft();
-  stepIndex.value = 2;
 };
 
 const resetMedicineForm = () => {
@@ -681,19 +716,6 @@ const removeMedication = (medicationId: string) => {
   });
 };
 
-const confirmMedicines = async () => {
-  if (!doctorStore.currentDraft.medications.length) {
-    return;
-  }
-
-  if (!window.confirm("Is the medicine list correct?")) {
-    return;
-  }
-
-  await doctorStore.saveDraft();
-  stepIndex.value = 3;
-};
-
 const resetDietForm = () => {
   dietForm.name = "";
   dietForm.type = "mandatory";
@@ -731,28 +753,5 @@ const removeDietItem = (dietItemId: string) => {
   doctorStore.setDraft({
     diet: doctorStore.currentDraft.diet.filter((item) => item.id !== dietItemId),
   });
-};
-
-const confirmDiet = async () => {
-  if (!doctorStore.currentDraft.diet.length) {
-    return;
-  }
-
-  if (!window.confirm("Is the diet list correct?")) {
-    return;
-  }
-
-  await doctorStore.saveDraft();
-  stepIndex.value = 4;
-};
-
-const finalizeInvite = async () => {
-  if (!window.confirm("Create this pending invite for the patient?")) {
-    return;
-  }
-
-  await doctorStore.finalizePendingInvite();
-  doctorStore.resetDraft();
-  await router.push("/doctor/dashboard");
 };
 </script>

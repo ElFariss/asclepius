@@ -65,7 +65,7 @@
         </div>
         <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4">
           <p class="mb-1 text-xs font-medium text-slate-500">Status</p>
-          <p class="text-xl font-bold text-green-600">Optimal</p>
+          <p class="text-xl font-bold text-blue-600">Optimal</p>
         </div>
       </div>
 

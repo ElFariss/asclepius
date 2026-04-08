@@ -1,42 +1,31 @@
 <template>
-  <div class="prototype-viewport">
-    <div class="prototype-frame">
-      <button
-        class="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-md transition hover:text-slate-900"
-        type="button"
-        @click="themeStore.toggleSettings(true)"
+  <div class="app-shell">
+    <RouterView v-slot="{ Component, route }">
+      <Transition
+        mode="out-in"
+        name="route-fade"
       >
-        <Settings :size="18" />
-      </button>
-      <RouterView v-slot="{ Component, route }">
-        <Transition
-          mode="out-in"
-          name="route-fade"
-        >
-          <component
-            :is="Component"
-            :key="route.fullPath"
-          />
-        </Transition>
-      </RouterView>
-      <SettingsModal />
-    </div>
+        <component
+          :is="Component"
+          :key="route.fullPath"
+        />
+      </Transition>
+    </RouterView>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from "vue";
-import { Settings } from "lucide-vue-next";
 import { RouterView } from "vue-router";
 
-import SettingsModal from "@/components/ui/SettingsModal.vue";
 import { usePatientStore } from "@/stores/patient";
-import { useThemeStore } from "@/stores/theme";
+import { useSessionStore } from "@/stores/session";
 
 const patientStore = usePatientStore();
-const themeStore = useThemeStore();
+const sessionStore = useSessionStore();
 
 onMounted(async () => {
+  await sessionStore.refreshProfile();
   await Promise.all([patientStore.loadInvite(), patientStore.loadDashboard()]);
 });
 </script>

@@ -47,4 +47,4 @@ export const formatCountdown = (isoValue: string) => {
 };
 
 export const formatSleepStatus = (entry: SleepEntry, targetHours: number) =>
-  entry.hours >= targetHours ? "text-emerald-600" : "text-rose-600";
+  entry.hours >= targetHours ? "text-blue-600" : "text-rose-600";

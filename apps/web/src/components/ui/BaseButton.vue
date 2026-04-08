@@ -30,9 +30,9 @@ const props = withDefaults(
 
 const buttonClass = computed(() =>
   cn(
-    "inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-60",
+    "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[13px] font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-60",
     props.block && "w-full",
-    props.variant === "primary" && "bg-blue-600 text-white shadow-lg shadow-blue-200 active:scale-95",
+    props.variant === "primary" && "theme-accent-bg active:scale-95",
     props.variant === "secondary" && "bg-slate-50 text-slate-700",
     props.variant === "ghost" && "bg-white text-slate-900",
     props.variant === "warm" && "bg-yellow-50 text-slate-900 shadow-sm",

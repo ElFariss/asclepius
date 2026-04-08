@@ -35,7 +35,7 @@ const router = useRouter();
 const sessionStore = useSessionStore();
 
 const openInvitation = async () => {
-  sessionStore.advancePatientStage("invite");
+  await sessionStore.advancePatientStage("invite");
   await router.push("/patient/invite");
 };
 </script>

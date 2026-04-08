@@ -2,7 +2,7 @@
   <label class="flex flex-col gap-2">
     <span
       v-if="label"
-      class="eyebrow"
+      class="eyebrow inline-flex w-fit rounded-full bg-white/88 px-2.5 py-1 shadow-sm shadow-slate-200/60 ring-1 ring-slate-200/70"
     >
       {{ label }}
     </span>
@@ -10,7 +10,7 @@
       :type="type"
       :placeholder="placeholder"
       :value="modelValue"
-      class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-blue-500"
+      class="theme-input"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
   </label>

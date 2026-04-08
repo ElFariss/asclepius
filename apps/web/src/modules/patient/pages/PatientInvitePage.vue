@@ -74,7 +74,7 @@ const router = useRouter();
 const sessionStore = useSessionStore();
 
 const goBack = async () => {
-  sessionStore.advancePatientStage("empty");
+  await sessionStore.advancePatientStage("empty");
   await router.push("/patient/empty");
 };
 
@@ -82,7 +82,7 @@ const continueToSurgery = async () => {
   if (patientStore.invite?.hasPendingUpdate) {
     await patientStore.acceptInvite();
   }
-  sessionStore.advancePatientStage("surgery");
+  await sessionStore.advancePatientStage("surgery");
   await router.push("/patient/surgery");
 };
 

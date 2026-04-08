@@ -6,9 +6,15 @@
     "apps/web"
   ],
   "scripts": {
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
     "dev": "npm run dev --workspace @asclepius/web",
+    "dev:api": "cd services/api && go run ./cmd/server",
     "build": "npm run build --workspace @asclepius/web",
     "test": "npm run test --workspace @asclepius/web",
     "lint": "npm run lint --workspace @asclepius/web"
+  },
+  "devDependencies": {
+    "@types/three": "^0.183.1"
   }
 }

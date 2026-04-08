@@ -98,6 +98,11 @@ watch(
       return;
     }
 
+    if (!value.data) {
+      clearViewer();
+      return;
+    }
+
     if (value.format === "pdf") {
       await renderPdf(value.data);
       return;

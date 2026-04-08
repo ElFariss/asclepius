@@ -1,112 +1,182 @@
-import { registry } from "@/services/adapters/mockRegistry";
-import type { AuthGateway, DoctorGateway, PatientGateway } from "@/services/gateways/contracts";
-import type { AuthFormPayload, AuthSession } from "@/types/domain";
-
-const delay = async (ms = 120) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const makeSession = (role: AuthSession["role"], payload: AuthFormPayload): AuthSession => {
-  if (role === "doctor") {
-    return {
-      userId: "doctor-1",
-      role,
-      email: payload.email,
-      displayName: "Dr. Andi Setiawan",
-      consentAccepted: false,
-      patientStage: "dashboard",
-    };
-  }
-
-  const patient = registry.findPatientByEmail(payload.email);
-  return {
-    userId: patient.id,
-    role,
-    email: patient.email,
-    displayName: patient.name,
-    consentAccepted: false,
-    patientStage: "empty",
-  };
-};
+import type {
+  AuthGateway,
+  DoctorGateway,
+  PatientGateway,
+  ProfileGateway,
+} from "@/services/gateways/contracts";
+import { request } from "@/services/http/client";
+import type {
+  AuthFormPayload,
+  AuthSession,
+  CalendarEventCreatePayload,
+  CarePlanDraft,
+  PatientInvite,
+  SurgeryDecision,
+  UploadAssetPayload,
+  UpdateProfilePayload,
+  UserProfile,
+} from "@/types/domain";
 
 export const authGateway: AuthGateway = {
   async login(role, payload) {
-    await delay();
-    return makeSession(role, payload);
+    const response = await request<{ token: string; session: AuthSession }>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return response.session;
   },
   async register(role, payload) {
-    await delay();
-    return makeSession(role, payload);
+    const response = await request<{ token: string; session: AuthSession }>(`/api/auth/register?role=${role}`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return response.session;
   },
-  async logout() {
-    await delay(60);
+  async logout(token) {
+    await request<void>("/api/auth/logout", {
+      method: "POST",
+      token,
+    });
+  },
+};
+
+export const profileGateway: ProfileGateway = {
+  async getMe(token) {
+    return request<UserProfile>("/api/me", { token });
+  },
+  async updateMe(token, payload) {
+    return request<UserProfile>("/api/me", {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  async uploadAvatar(token, payload) {
+    return request<UserProfile>("/api/me/avatar", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
   },
 };
 
 export const patientGateway: PatientGateway = {
-  async getPendingInvite(patientId) {
-    await delay();
-    return registry.getPatientInvite(patientId);
+  async getPendingInvite(token) {
+    const response = await request<{ invite: PatientInvite | null }>("/api/patient/invite", {
+      token,
+    });
+    return response.invite ?? null;
   },
-  async acceptInvite(patientId) {
-    await delay();
-    registry.acceptInvite(patientId);
+  async acceptInvite(token) {
+    await request<void>("/api/patient/invite/accept", {
+      method: "POST",
+      token,
+    });
   },
-  async getPatient(patientId) {
-    await delay();
-    return registry.getPatientProfile(patientId);
+  async getPatient(token) {
+    return request("/api/patient/profile", { token });
   },
-  async getTasks(patientId) {
-    await delay();
-    return registry.getPatientTasks(patientId);
+  async getTasks(token) {
+    return request("/api/patient/tasks", { token });
   },
-  async updateTask(patientId, taskId, completed) {
-    await delay();
-    return registry.updateTask(patientId, taskId, completed);
+  async updateTask(token, taskId, completed) {
+    return request("/api/patient/tasks", {
+      method: "PATCH",
+      token,
+      body: JSON.stringify({ taskId, completed }),
+    });
   },
-  async getProgress(patientId) {
-    await delay();
-    return registry.getProgress(patientId);
+  async getProgress(token) {
+    return request("/api/patient/progress", { token });
   },
-  async getMedicationPlan(patientId) {
-    await delay();
-    return registry.getMedicationPlan(patientId);
+  async getMedicationPlan(token) {
+    return request("/api/patient/medicines", { token });
   },
-  async getDietPlan(patientId) {
-    await delay();
-    return registry.getDietPlan(patientId);
+  async getDietPlan(token) {
+    return request("/api/patient/diet", { token });
   },
-  async getCalendarEvents(patientId) {
-    await delay();
-    return registry.getCalendarEvents(patientId);
+  async getCalendarEvents(token, year, month) {
+    const query = new URLSearchParams();
+    if (year) {
+      query.set("year", String(year));
+    }
+    if (month) {
+      query.set("month", String(month));
+    }
+    return request(`/api/patient/calendar${query.size ? `?${query.toString()}` : ""}`, { token });
   },
-  async getSleepSummary(patientId) {
-    await delay();
-    return registry.getSleepSummary(patientId);
+  async getSleepSummary(token) {
+    return request("/api/patient/sleep", { token });
+  },
+  async advanceStage(token, stage) {
+    await request<void>("/api/patient/stage", {
+      method: "PATCH",
+      token,
+      body: JSON.stringify({ stage }),
+    });
+  },
+  async acceptConsent(token) {
+    await request<void>("/api/patient/consent", {
+      method: "POST",
+      token,
+    });
   },
 };
 
 export const doctorGateway: DoctorGateway = {
-  async getDashboard() {
-    await delay();
-    return registry.getDoctorDashboard();
+  async getDashboard(token) {
+    return request("/api/doctor/dashboard", { token });
   },
-  async listDoctorPatients() {
-    await delay();
-    return registry.getDoctorDashboard().patients;
+  async getPatient(token, patientId) {
+    return request(`/api/doctor/patients/${patientId}`, { token });
   },
-  async getPatient(patientId) {
-    await delay();
-    return registry.getPatientDetail(patientId);
+  async lookupPatientById(token, patientId) {
+    try {
+      return await request(`/api/doctor/patients/lookup/${patientId}`, { token });
+    } catch {
+      return null;
+    }
   },
-  async lookupPatientById(patientId) {
-    await delay();
-    return registry.lookupPatientById(patientId);
+  async finalizePendingInvite(token, payload) {
+    await request<void>("/api/doctor/patients/pending-care-plan", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
   },
-  async saveDraftCarePlan(payload) {
-    await delay();
-    return registry.saveDraft(payload);
+  async getPatientCalendar(token, patientId, year) {
+    const query = year ? `?year=${year}` : "";
+    return request(`/api/doctor/patients/${patientId}/calendar${query}`, { token });
   },
-  async finalizePendingInvite(payload) {
-    await delay();
-    return registry.finalizePendingInvite(payload);
+  async createCalendarEvent(token, patientId, payload) {
+    await request<void>(`/api/doctor/patients/${patientId}/calendar-events`, {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  async setSurgeryDecision(token, patientId, decision) {
+    await request<void>(`/api/doctor/patients/${patientId}/surgery-decision`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify({ decision } satisfies { decision: SurgeryDecision }),
+    });
   },
 };
+
+export const fileToUploadPayload = async (file: File): Promise<UploadAssetPayload> => {
+  const data = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+  return {
+    name: file.name,
+    mimeType: file.type,
+    data,
+  };
+};
+
+export type { CalendarEventCreatePayload, CarePlanDraft, UpdateProfilePayload, UserProfile };

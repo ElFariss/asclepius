@@ -2,12 +2,12 @@ export type UserRole = "patient" | "doctor";
 export type RiskLevel = "Low" | "Medium" | "High";
 export type TaskCategory = "medication" | "exercise" | "nutrition";
 export type PatientJourneyStage = "empty" | "invite" | "surgery" | "consent" | "dashboard";
-export type SurgeryDecision = "none" | "go" | "no-go";
-export type PendingInviteStatus = "active" | "pending-acceptance";
+export type SurgeryDecision = "none" | "proceed" | "postpone";
+export type PendingInviteStatus = "active" | "pending-acceptance" | "archived";
 export type ThemeMode = "blue-medical" | "green-forest";
 export type DietType = "mandatory" | "recommended" | "not-allowed";
 export type MealTiming = "before-eating" | "after-eating";
-export type CalendarEventType = "medication" | "appointment" | "surgery";
+export type CalendarEventType = "task" | "medication" | "appointment" | "surgery";
 export type SurgeryPlanFormat = "pdf" | "docx";
 
 export interface AuthFormPayload {
@@ -19,10 +19,14 @@ export interface AuthFormPayload {
 }
 
 export interface AuthSession {
+  token: string;
   userId: string;
   role: UserRole;
   displayName: string;
   email: string;
+  avatarUrl: string;
+  themeMode: ThemeMode;
+  accentColor: string;
   consentAccepted: boolean;
   patientStage: PatientJourneyStage;
 }
@@ -41,31 +45,13 @@ export interface PatientTask {
   category: TaskCategory;
 }
 
-export interface PatientLookupRecord {
-  id: string;
-  email: string;
-  name: string;
-  procedure: string;
-  doctorName: string;
-  specialty: string;
-  compliance: number;
-  risk: RiskLevel;
-  riskScore: number;
-  notes: string;
-  nextAppointment: string;
-  surgeryDuration: string;
-  hospitalStay: string;
-  lastConsultation: string;
-  streak: number;
-  daysUntilSurgery: number;
-}
-
 export interface SurgeryPlanDocument {
   id: string;
   name: string;
   format: SurgeryPlanFormat;
   mimeType: string;
-  data: string;
+  data?: string;
+  url?: string;
 }
 
 export interface MedicationSchedule {
@@ -82,18 +68,58 @@ export interface MedicationPlan {
   schedule: MedicationSchedule;
 }
 
+export interface MedicationReminder {
+  medicationId: string;
+  title: string;
+  startAt: string;
+  recurrence?: RecurrenceRule | null;
+}
+
 export interface DietItem {
   id: string;
   name: string;
   type: DietType;
 }
 
-export interface CalendarEvent {
+export interface RecurrenceEnd {
+  type: "never" | "on-date" | "after-occurrences";
+  endDate?: string;
+  occurrences?: number;
+}
+
+export interface RecurrenceRule {
+  mode: "does-not-repeat" | "every-week" | "every-month" | "custom";
+  interval: number;
+  unit: "day" | "week" | "month";
+  weekdays?: string[];
+  monthlyPattern?: "day-of-month" | "first-weekday";
+  end: RecurrenceEnd;
+}
+
+export interface CalendarEventSummary {
   id: string;
   date: string;
   type: CalendarEventType;
   title: string;
   detail: string;
+  previewText: string;
+}
+
+export interface CalendarEventDetail extends CalendarEventSummary {
+  startAt?: string;
+  endAt?: string;
+  allDay: boolean;
+  medicationId?: string;
+  recurrence?: RecurrenceRule | null;
+}
+
+export type CalendarEvent = CalendarEventDetail;
+
+export interface CalendarViewData {
+  label: string;
+  focusMonth: number;
+  year: number;
+  events: CalendarEvent[];
 }
 
 export interface SleepEntry {
@@ -116,17 +142,7 @@ export interface CarePlanDraft {
   diet: DietItem[];
 }
 
-export interface PatientCarePlan extends CarePlanDraft {
-  inviteId: string;
-  procedure: string;
-  calendarEvents: CalendarEvent[];
-  sleepEntries: SleepEntry[];
-  inviteStatus: PendingInviteStatus;
-  createdAt: string;
-  acceptedAt: string | null;
-}
-
-export interface PendingInvitePreview {
+export interface PatientInvite {
   inviteId: string;
   patientId: string;
   status: PendingInviteStatus;
@@ -134,15 +150,34 @@ export interface PendingInvitePreview {
   specialty: string;
   procedure: string;
   surgeryDate: string;
-}
-
-export interface PatientInvite extends PendingInvitePreview {
   hasPendingUpdate: boolean;
 }
 
 export interface Patient {
   id: string;
   name: string;
+  email: string;
+  avatarUrl: string;
+  procedure: string;
+  compliance: number;
+  risk: RiskLevel;
+  riskScore: number;
+  status: string;
+  inviteStatus: PendingInviteStatus;
+  surgeryDate: string;
+  daysUntilSurgery: number;
+  attendingDoctor: string;
+  specialty: string;
+  hospitalStay: string;
+  surgeryDuration: string;
+  nextAppointment: string;
+}
+
+export interface PatientLookupRecord {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl: string;
   procedure: string;
   compliance: number;
   risk: RiskLevel;
@@ -164,20 +199,18 @@ export interface DoctorPatientSummary {
   procedure: string;
   compliance: number;
   risk: RiskLevel;
-  riskScore: number;
   status: string;
   inviteStatus: PendingInviteStatus;
+  avatarUrl: string;
+  trend: number[];
 }
 
-export interface PatientDetail extends DoctorPatientSummary {
-  nextAppointment: string;
-  tasks: PatientTask[];
-  notes: string;
-  surgeryDate: string;
-  surgeryDocument: SurgeryPlanDocument | null;
-  medications: MedicationPlan[];
-  diet: DietItem[];
-  calendarEvents: CalendarEvent[];
+export interface ComplianceSeries {
+  patientId: string;
+  name: string;
+  color: string;
+  labels: string[];
+  values: number[];
 }
 
 export interface DoctorDashboardData {
@@ -186,9 +219,66 @@ export interface DoctorDashboardData {
   activePatients: number;
   needsIntervention: number;
   patients: DoctorPatientSummary[];
+  complianceSeries: ComplianceSeries[];
 }
 
-export interface CalendarMonthDetails {
-  monthLabel: string;
-  events: CalendarEvent[];
+export interface PatientDetail {
+  id: string;
+  name: string;
+  procedure: string;
+  compliance: number;
+  risk: RiskLevel;
+  riskScore: number;
+  status: string;
+  inviteStatus: PendingInviteStatus;
+  avatarUrl: string;
+  nextAppointment: string;
+  tasks: PatientTask[];
+  notes: string;
+  surgeryDate: string;
+  surgeryDocument: SurgeryPlanDocument | null;
+  medications: MedicationPlan[];
+  diet: DietItem[];
+  calendarPreview: CalendarEvent[];
+  progress: ProgressPoint[];
+  surgeryDecision: SurgeryDecision;
+}
+
+export interface UserProfile {
+  id: string;
+  role: UserRole;
+  email: string;
+  displayName: string;
+  firstName: string;
+  lastName: string;
+  licenseNumber: string;
+  avatarUrl: string;
+  themeMode: ThemeMode;
+  accentColor: string;
+  patientCode: string;
+}
+
+export interface UploadAssetPayload {
+  name: string;
+  mimeType: string;
+  data: string;
+}
+
+export interface UpdateProfilePayload {
+  displayName: string;
+  firstName: string;
+  lastName: string;
+  themeMode: ThemeMode;
+  accentColor: string;
+}
+
+export interface CalendarEventCreatePayload {
+  type: CalendarEventType;
+  title: string;
+  detail: string;
+  startAt: string;
+  endAt?: string;
+  allDay: boolean;
+  medicationId?: string;
+  recurrence?: RecurrenceRule | null;
 }

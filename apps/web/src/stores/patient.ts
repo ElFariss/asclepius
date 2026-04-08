@@ -4,7 +4,7 @@ import { defineStore } from "pinia";
 import { patientGateway } from "@/services/adapters/mockAdapters";
 import { useSessionStore } from "@/stores/session";
 import type {
-  CalendarMonthDetails,
+  CalendarViewData,
   DietItem,
   MedicationPlan,
   Patient,
@@ -21,31 +21,39 @@ export const usePatientStore = defineStore("patient", () => {
   const progress = ref<ProgressPoint[]>([]);
   const medications = ref<MedicationPlan[]>([]);
   const diet = ref<DietItem[]>([]);
-  const calendar = ref<CalendarMonthDetails | null>(null);
+  const calendar = ref<CalendarViewData | null>(null);
   const sleep = ref<SleepSummary | null>(null);
   const loading = ref(false);
 
-  const currentPatientId = () => useSessionStore().userId || "p1";
+  const sessionStore = useSessionStore();
+  const currentToken = () => sessionStore.token;
 
   const completedCount = computed(() => tasks.value.filter((task) => task.completed).length);
   const hasPendingInvite = computed(() => Boolean(invite.value?.hasPendingUpdate));
 
   const loadInvite = async () => {
-    invite.value = await patientGateway.getPendingInvite(currentPatientId());
+    if (!currentToken()) {
+      invite.value = null;
+      return;
+    }
+    invite.value = await patientGateway.getPendingInvite(currentToken());
   };
 
   const loadDashboard = async () => {
+    if (!currentToken()) {
+      return;
+    }
     loading.value = true;
     try {
-      const patientId = currentPatientId();
+      const token = currentToken();
       const [patient, nextTasks, nextProgress, nextMedications, nextDiet, nextCalendar, nextSleep] = await Promise.all([
-        patientGateway.getPatient(patientId),
-        patientGateway.getTasks(patientId),
-        patientGateway.getProgress(patientId),
-        patientGateway.getMedicationPlan(patientId),
-        patientGateway.getDietPlan(patientId),
-        patientGateway.getCalendarEvents(patientId),
-        patientGateway.getSleepSummary(patientId),
+        patientGateway.getPatient(token),
+        patientGateway.getTasks(token),
+        patientGateway.getProgress(token),
+        patientGateway.getMedicationPlan(token),
+        patientGateway.getDietPlan(token),
+        patientGateway.getCalendarEvents(token),
+        patientGateway.getSleepSummary(token),
       ]);
       profile.value = patient;
       tasks.value = nextTasks;
@@ -59,18 +67,39 @@ export const usePatientStore = defineStore("patient", () => {
     }
   };
 
+  const loadCalendar = async (year?: number, month?: number) => {
+    if (!currentToken()) {
+      return;
+    }
+    calendar.value = await patientGateway.getCalendarEvents(currentToken(), year, month);
+  };
+
   const acceptInvite = async () => {
-    await patientGateway.acceptInvite(currentPatientId());
+    if (!currentToken()) {
+      return;
+    }
+    await patientGateway.acceptInvite(currentToken());
     await Promise.all([loadInvite(), loadDashboard()]);
   };
 
   const toggleTask = async (taskId: string) => {
     const current = tasks.value.find((task) => task.id === taskId);
-    if (!current) {
+    if (!current || !currentToken()) {
       return;
     }
 
-    tasks.value = await patientGateway.updateTask(currentPatientId(), taskId, !current.completed);
+    tasks.value = await patientGateway.updateTask(currentToken(), taskId, !current.completed);
+  };
+
+  const reset = () => {
+    invite.value = null;
+    profile.value = null;
+    tasks.value = [];
+    progress.value = [];
+    medications.value = [];
+    diet.value = [];
+    calendar.value = null;
+    sleep.value = null;
   };
 
   return {
@@ -80,12 +109,14 @@ export const usePatientStore = defineStore("patient", () => {
     diet,
     hasPendingInvite,
     invite,
+    loadCalendar,
     loadDashboard,
     loadInvite,
     loading,
     medications,
     profile,
     progress,
+    reset,
     sleep,
     tasks,
     toggleTask,

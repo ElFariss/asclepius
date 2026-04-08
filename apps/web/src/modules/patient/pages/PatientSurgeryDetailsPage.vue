@@ -87,7 +87,7 @@ const router = useRouter();
 const sessionStore = useSessionStore();
 
 const continueToConsent = async () => {
-  sessionStore.advancePatientStage("consent");
+  await sessionStore.advancePatientStage("consent");
   await router.push("/patient/consent");
 };
 
