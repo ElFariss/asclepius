@@ -108,16 +108,37 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) applyCORS(w http.ResponseWriter, r *http.Request) {
-	origin := s.config.CORSOrigin
-	if origin == "" {
-		origin = r.Header.Get("Origin")
-	}
+	origin := s.allowedOrigin(r.Header.Get("Origin"))
 	if origin != "" {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Vary", "Origin")
 	}
 	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 	w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS")
+}
+
+func (s *Server) allowedOrigin(requestOrigin string) string {
+	requestOrigin = strings.TrimSpace(requestOrigin)
+	configuredOrigins := strings.TrimSpace(s.config.CORSOrigin)
+
+	if configuredOrigins == "" {
+		return requestOrigin
+	}
+
+	for _, candidate := range strings.Split(configuredOrigins, ",") {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if candidate == "*" {
+			return "*"
+		}
+		if candidate == requestOrigin {
+			return requestOrigin
+		}
+	}
+
+	return ""
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
