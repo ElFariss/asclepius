@@ -11,6 +11,8 @@
         />
       </Transition>
     </RouterView>
+
+    <ChatDrawer />
   </div>
 </template>
 
@@ -18,6 +20,7 @@
 import { onMounted } from "vue";
 import { RouterView } from "vue-router";
 
+import ChatDrawer from "@/components/ui/ChatDrawer.vue";
 import { useDoctorStore } from "@/stores/doctor";
 import { useSessionStore } from "@/stores/session";
 

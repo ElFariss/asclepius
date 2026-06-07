@@ -1,0 +1,12 @@
+node_modules
+apps/web/node_modules
+apps/web/dist
+dist
+coverage
+.git
+.github
+.env
+.env.*
+services/api/storage
+playwright-report
+test-results

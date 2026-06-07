@@ -41,6 +41,19 @@
         />
       </label>
 
+      <label
+        v-if="mode === 'task'"
+        class="block space-y-2"
+      >
+        <span class="eyebrow">Task variable</span>
+        <input
+          v-model="form.variableName"
+          class="theme-input"
+          placeholder="Exercise"
+          type="text"
+        />
+      </label>
+
       <label class="block space-y-2">
         <span class="eyebrow">Details</span>
         <textarea
@@ -271,6 +284,7 @@ const emit = defineEmits<{
 const form = reactive({
   medicationId: "",
   title: "",
+  variableName: "",
   detail: "",
   date: "",
   startTime: "09:00",
@@ -298,6 +312,7 @@ watch(
     }
     form.medicationId = "";
     form.title = "";
+    form.variableName = "";
     form.detail = "";
     form.date = "";
     form.startTime = "09:00";
@@ -418,7 +433,7 @@ const applyCustom = () => {
 };
 
 const submit = () => {
-  if (!form.title || !form.date || !form.startTime) {
+  if (!form.title || !form.date || !form.startTime || (props.mode === "task" && !form.variableName.trim())) {
     return;
   }
 
@@ -429,6 +444,7 @@ const submit = () => {
     type: props.mode,
     title: form.title,
     detail: form.detail,
+    variableName: props.mode === "task" ? form.variableName.trim() : undefined,
     startAt: startAt.toISOString(),
     endAt: endAt.toISOString(),
     allDay: false,

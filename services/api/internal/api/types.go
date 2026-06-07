@@ -3,10 +3,16 @@ package api
 import "time"
 
 type UserRole string
+type Workspace string
 
 const (
 	RolePatient UserRole = "patient"
 	RoleDoctor  UserRole = "doctor"
+)
+
+const (
+	WorkspaceLive Workspace = "live"
+	WorkspaceDemo Workspace = "demo"
 )
 
 type PatientJourneyStage string
@@ -42,6 +48,12 @@ const (
 	DecisionPostpone SurgeryDecision = "postpone"
 )
 
+const (
+	RiskSafe       RiskLevel = "Safe"
+	RiskBorderline RiskLevel = "Borderline"
+	RiskIntervene  RiskLevel = "Intervene"
+)
+
 type RiskLevel string
 
 type TaskCategory string
@@ -71,6 +83,7 @@ type AuthSession struct {
 	Token           string              `json:"token"`
 	UserID          string              `json:"userId"`
 	Role            UserRole            `json:"role"`
+	Workspace       Workspace           `json:"workspace"`
 	DisplayName     string              `json:"displayName"`
 	Email           string              `json:"email"`
 	AvatarURL       string              `json:"avatarUrl"`
@@ -80,11 +93,13 @@ type AuthSession struct {
 	PatientStage    PatientJourneyStage `json:"patientStage"`
 }
 
-type ProgressPoint struct {
+type PatientMetricPoint struct {
 	Day        string `json:"day"`
 	Compliance int    `json:"compliance"`
 	Risk       int    `json:"risk"`
 }
+
+type ProgressPoint = PatientMetricPoint
 
 type PatientTask struct {
 	ID        string       `json:"id"`
@@ -128,6 +143,35 @@ type DietItem struct {
 	Type DietType `json:"type"`
 }
 
+type LatestCheckup struct {
+	Summary   string `json:"summary"`
+	CheckedAt string `json:"checkedAt"`
+}
+
+type RiskScoreEntry struct {
+	ID           string `json:"id"`
+	PatientID    string `json:"patientId"`
+	VariableName string `json:"variableName"`
+	Score        int    `json:"score"`
+	Note         string `json:"note"`
+	AuthorName   string `json:"authorName"`
+	CreatedAt    string `json:"createdAt"`
+}
+
+type ChatMessage struct {
+	ID         string   `json:"id"`
+	PatientID  string   `json:"patientId"`
+	SenderRole UserRole `json:"senderRole"`
+	SenderName string   `json:"senderName"`
+	Body       string   `json:"body"`
+	CreatedAt  string   `json:"createdAt"`
+}
+
+type ChatThread struct {
+	PatientID string        `json:"patientId"`
+	Messages  []ChatMessage `json:"messages"`
+}
+
 type RecurrenceEnd struct {
 	Type        string `json:"type"`
 	EndDate     string `json:"endDate,omitempty"`
@@ -150,6 +194,7 @@ type CalendarEvent struct {
 	Title        string            `json:"title"`
 	Detail       string            `json:"detail"`
 	PreviewText  string            `json:"previewText"`
+	VariableName string            `json:"variableName,omitempty"`
 	StartAt      string            `json:"startAt,omitempty"`
 	EndAt        string            `json:"endAt,omitempty"`
 	AllDay       bool              `json:"allDay"`
@@ -211,10 +256,10 @@ type DoctorPatientSummary struct {
 	Status       string              `json:"status"`
 	InviteStatus PendingInviteStatus `json:"inviteStatus"`
 	AvatarURL    string              `json:"avatarUrl"`
-	Trend        []int               `json:"trend"`
+	Metrics      []int               `json:"metrics"`
 }
 
-type ComplianceSeries struct {
+type MetricSeries struct {
 	PatientID string   `json:"patientId"`
 	Name      string   `json:"name"`
 	Color     string   `json:"color"`
@@ -222,13 +267,15 @@ type ComplianceSeries struct {
 	Values    []int    `json:"values"`
 }
 
+type ComplianceSeries = MetricSeries
+
 type DoctorDashboardData struct {
 	DoctorName        string                 `json:"doctorName"`
 	Title             string                 `json:"title"`
 	ActivePatients    int                    `json:"activePatients"`
 	NeedsIntervention int                    `json:"needsIntervention"`
 	Patients          []DoctorPatientSummary `json:"patients"`
-	ComplianceSeries  []ComplianceSeries     `json:"complianceSeries"`
+	MetricSeries      []MetricSeries         `json:"metricSeries"`
 }
 
 type PatientDetail struct {
@@ -249,13 +296,16 @@ type PatientDetail struct {
 	Medications     []MedicationPlan     `json:"medications"`
 	Diet            []DietItem           `json:"diet"`
 	CalendarPreview []CalendarEvent      `json:"calendarPreview"`
-	Progress        []ProgressPoint      `json:"progress"`
+	Metrics         []PatientMetricPoint `json:"metrics"`
+	RiskEntries     []RiskScoreEntry     `json:"riskEntries"`
+	LatestCheckup   LatestCheckup        `json:"latestCheckup"`
 	SurgeryDecision SurgeryDecision      `json:"surgeryDecision"`
 }
 
 type UserProfile struct {
 	ID            string    `json:"id"`
 	Role          UserRole  `json:"role"`
+	Workspace     Workspace `json:"workspace"`
 	Email         string    `json:"email"`
 	DisplayName   string    `json:"displayName"`
 	FirstName     string    `json:"firstName"`
@@ -293,11 +343,31 @@ type CalendarEventCreatePayload struct {
 	Type         CalendarEventType `json:"type"`
 	Title        string            `json:"title"`
 	Detail       string            `json:"detail"`
+	VariableName string            `json:"variableName,omitempty"`
 	StartAt      string            `json:"startAt"`
 	EndAt        string            `json:"endAt,omitempty"`
 	AllDay       bool              `json:"allDay"`
 	MedicationID string            `json:"medicationId,omitempty"`
 	Recurrence   *RecurrenceRule   `json:"recurrence,omitempty"`
+}
+
+type ChatMessageCreatePayload struct {
+	Body string `json:"body"`
+}
+
+type RiskScoreCreatePayload struct {
+	VariableName string `json:"variableName"`
+	Score        int    `json:"score"`
+	Note         string `json:"note"`
+}
+
+type LatestCheckupPayload struct {
+	Summary   string `json:"summary"`
+	CheckedAt string `json:"checkedAt"`
+}
+
+type DemoSessionPayload struct {
+	Role UserRole `json:"role"`
 }
 
 type SurgeryDecisionPayload struct {
@@ -307,6 +377,7 @@ type SurgeryDecisionPayload struct {
 type accountRow struct {
 	ID              string
 	Role            UserRole
+	Workspace       Workspace
 	Email           string
 	PasswordHash    string
 	DisplayName     string

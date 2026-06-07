@@ -42,7 +42,7 @@
             <BaseInput
               v-model="form.email"
               label="Email Address"
-              :placeholder="currentRole === 'doctor' ? 'dr.andi@hospital.com' : 'patient@example.com'"
+              placeholder="name@example.com"
               type="email"
             />
             <BaseInput
@@ -106,16 +106,16 @@ const currentRole = computed<UserRole>(() => (route.meta.role as UserRole) ?? "p
 const errorMessage = ref("");
 const submitting = ref(false);
 const form = reactive({
-  email: "patient@example.com",
-  password: "password123",
+  email: "",
+  password: "",
 });
 
 watch(
   currentRole,
-  (role) => {
+  () => {
     errorMessage.value = "";
-    form.email = role === "doctor" ? "dr.andi@hospital.com" : "patient@example.com";
-    form.password = "password123";
+    form.email = "";
+    form.password = "";
   },
   { immediate: true },
 );

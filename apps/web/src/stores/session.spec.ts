@@ -23,6 +23,7 @@ describe("session store", () => {
                 token: "token-1",
                 userId: "patient-1",
                 role: "patient",
+                workspace: "live",
                 displayName: "Budi Santoso",
                 email: "patient@example.com",
                 avatarUrl: "",
@@ -40,6 +41,7 @@ describe("session store", () => {
             JSON.stringify({
               id: "patient-1",
               role: "patient",
+              workspace: "live",
               email: "patient@example.com",
               displayName: "Budi Santoso",
               firstName: "Budi",
@@ -78,6 +80,7 @@ describe("session store", () => {
                 token: "token-1",
                 userId: "patient-1",
                 role: "patient",
+                workspace: "live",
                 displayName: "Budi Santoso",
                 email: "patient@example.com",
                 avatarUrl: "",
@@ -95,6 +98,7 @@ describe("session store", () => {
             JSON.stringify({
               id: "patient-1",
               role: "patient",
+              workspace: "live",
               email: "patient@example.com",
               displayName: "Budi Santoso",
               firstName: "Budi",

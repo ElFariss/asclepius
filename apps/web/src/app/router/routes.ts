@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from "vue-router";
 const AuthShell = () => import("@/app/layouts/AuthShell.vue");
 const DoctorShell = () => import("@/app/layouts/DoctorShell.vue");
 const PatientShell = () => import("@/app/layouts/PatientShell.vue");
+const LandingPage = () => import("@/modules/shared/pages/LandingPage.vue");
 const LoginPage = () => import("@/modules/auth/pages/LoginPage.vue");
 const RegisterPage = () => import("@/modules/auth/pages/RegisterPage.vue");
 const SettingsPage = () => import("@/modules/shared/pages/SettingsPage.vue");
@@ -25,7 +26,12 @@ const PatientSurgeryDetailsPage = () => import("@/modules/patient/pages/PatientS
 export const routes: RouteRecordRaw[] = [
   {
     path: "/",
-    redirect: "/patient/login",
+    redirect: "/landing",
+  },
+  {
+    path: "/landing",
+    name: "landing",
+    component: LandingPage,
   },
   {
     path: "/patient",

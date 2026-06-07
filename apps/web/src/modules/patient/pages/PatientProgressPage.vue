@@ -18,7 +18,7 @@
       <div>
         <div class="mb-4 flex items-center justify-between">
           <h3 class="flex items-center gap-2 font-bold">
-            <TrendingUp
+            <ChartLine
               :size="18"
               class="text-blue-600"
             />
@@ -29,7 +29,7 @@
           </span>
         </div>
         <div class="h-48 w-full">
-          <TrendChart
+          <MetricsChart
             :labels="labels"
             :values="compliance"
             color="#2563eb"
@@ -41,14 +41,14 @@
         <div class="mb-4 flex items-center justify-between">
           <h3 class="flex items-center gap-2 font-bold text-red-500">
             <Activity :size="18" />
-            Risk Score Trend
+            Risk Score Metrics
           </h3>
           <span class="rounded-md bg-red-50 px-2 py-1 text-xs font-bold text-red-500">
-            Low Risk
+            Safe
           </span>
         </div>
         <div class="h-48 w-full">
-          <TrendChart
+          <MetricsChart
             :fill="false"
             :labels="labels"
             :max="20"
@@ -82,9 +82,9 @@
 <script setup lang="ts">
 import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { Activity, ArrowLeft, Info, TrendingUp } from "lucide-vue-next";
+import { Activity, ArrowLeft, ChartLine, Info } from "lucide-vue-next";
 
-import TrendChart from "@/components/charts/TrendChart.vue";
+import MetricsChart from "@/components/charts/MetricsChart.vue";
 import { usePatientStore } from "@/stores/patient";
 
 const patientStore = usePatientStore();

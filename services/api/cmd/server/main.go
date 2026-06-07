@@ -26,8 +26,8 @@ func main() {
 		DatabaseURL:   envOrDefault("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/asclepius?sslmode=disable"),
 		Port:          envOrDefault("PORT", "8080"),
 		CORSOrigin:    envOrDefault("CORS_ORIGIN", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"),
-		StorageDir:    filepath.Join(workDir, "storage"),
-		PublicBaseURL: envOrDefault("PUBLIC_BASE_URL", "http://localhost:8080"),
+		StorageDir:    envOrDefault("STORAGE_DIR", filepath.Join(workDir, "storage")),
+		PublicBaseURL: envOrDefault("PUBLIC_BASE_URL", ""),
 		WorkDir:       workDir,
 	}
 

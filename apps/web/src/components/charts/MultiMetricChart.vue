@@ -14,13 +14,13 @@ import { GridComponent, TooltipComponent } from "echarts/components";
 import { LineChart } from "echarts/charts";
 import { use } from "echarts/core";
 
-import type { ComplianceSeries } from "@/types/domain";
+import type { MetricSeries } from "@/types/domain";
 
 use([CanvasRenderer, GridComponent, LineChart, TooltipComponent]);
 provide(THEME_KEY, "light");
 
 const props = defineProps<{
-  series: ComplianceSeries[];
+  series: MetricSeries[];
 }>();
 
 const option = computed(() => ({

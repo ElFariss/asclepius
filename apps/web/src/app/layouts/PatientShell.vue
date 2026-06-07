@@ -11,6 +11,12 @@
         />
       </Transition>
     </RouterView>
+
+    <PatientChatLauncher
+      :patient-id="sessionStore.profile?.patientCode ?? patientStore.profile?.id ?? ''"
+      :title="patientStore.profile ? `${patientStore.profile.attendingDoctor} Chat` : 'Care Team Chat'"
+    />
+    <ChatDrawer />
   </div>
 </template>
 
@@ -18,6 +24,8 @@
 import { onMounted } from "vue";
 import { RouterView } from "vue-router";
 
+import ChatDrawer from "@/components/ui/ChatDrawer.vue";
+import PatientChatLauncher from "@/components/ui/PatientChatLauncher.vue";
 import { usePatientStore } from "@/stores/patient";
 import { useSessionStore } from "@/stores/session";
 

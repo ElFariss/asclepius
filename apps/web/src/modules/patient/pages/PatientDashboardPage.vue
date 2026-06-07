@@ -50,7 +50,7 @@
             </div>
 
             <div class="h-48 w-full">
-              <TrendChart
+              <MetricsChart
                 :labels="labels"
                 :values="compliance"
                 color="var(--theme-primary)"
@@ -169,7 +169,7 @@ import {
   Utensils,
 } from "lucide-vue-next";
 
-import TrendChart from "@/components/charts/TrendChart.vue";
+import MetricsChart from "@/components/charts/MetricsChart.vue";
 import { usePatientStore } from "@/stores/patient";
 import { useSessionStore } from "@/stores/session";
 

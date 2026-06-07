@@ -43,6 +43,7 @@ func scanAccount(scanner interface {
 	err := scanner.Scan(
 		&row.ID,
 		&row.Role,
+		&row.Workspace,
 		&row.Email,
 		&row.PasswordHash,
 		&row.DisplayName,
@@ -61,19 +62,23 @@ func scanAccount(scanner interface {
 }
 
 func (s *Server) accountByEmail(ctx context.Context, email string) (accountRow, error) {
+	return s.accountByEmailInWorkspace(ctx, email, WorkspaceLive)
+}
+
+func (s *Server) accountByEmailInWorkspace(ctx context.Context, email string, workspace Workspace) (accountRow, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, role, email, password_hash, display_name, first_name, last_name, license_number,
+		SELECT id, role, workspace, email, password_hash, display_name, first_name, last_name, license_number,
 		       COALESCE(patient_code, ''), avatar_path, theme_mode, accent_color,
 		       consent_accepted, patient_stage, created_at
 		FROM accounts
-		WHERE lower(email) = lower($1)
-	`, email)
+		WHERE lower(email) = lower($1) AND workspace = $2
+	`, email, workspace)
 	return scanAccount(row)
 }
 
 func (s *Server) accountByID(ctx context.Context, accountID string) (accountRow, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, role, email, password_hash, display_name, first_name, last_name, license_number,
+		SELECT id, role, workspace, email, password_hash, display_name, first_name, last_name, license_number,
 		       COALESCE(patient_code, ''), avatar_path, theme_mode, accent_color,
 		       consent_accepted, patient_stage, created_at
 		FROM accounts
@@ -84,13 +89,26 @@ func (s *Server) accountByID(ctx context.Context, accountID string) (accountRow,
 
 func (s *Server) accountByToken(ctx context.Context, token string) (accountRow, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT a.id, a.role, a.email, a.password_hash, a.display_name, a.first_name, a.last_name, a.license_number,
+		SELECT a.id, a.role, a.workspace, a.email, a.password_hash, a.display_name, a.first_name, a.last_name, a.license_number,
 		       COALESCE(a.patient_code, ''), a.avatar_path, a.theme_mode, a.accent_color,
 		       a.consent_accepted, a.patient_stage, a.created_at
 		FROM sessions AS sess
 		JOIN accounts AS a ON a.id = sess.user_id
 		WHERE sess.token = $1 AND sess.expires_at > NOW()
 	`, token)
+	return scanAccount(row)
+}
+
+func (s *Server) demoAccountForRole(ctx context.Context, role UserRole) (accountRow, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT id, role, workspace, email, password_hash, display_name, first_name, last_name, license_number,
+		       COALESCE(patient_code, ''), avatar_path, theme_mode, accent_color,
+		       consent_accepted, patient_stage, created_at
+		FROM accounts
+		WHERE role = $1 AND workspace = $2
+		ORDER BY patient_code ASC NULLS LAST, created_at ASC
+		LIMIT 1
+	`, role, WorkspaceDemo)
 	return scanAccount(row)
 }
 
@@ -107,6 +125,7 @@ func (s *Server) createSession(ctx context.Context, account accountRow) (AuthSes
 		Token:           token,
 		UserID:          account.ID,
 		Role:            account.Role,
+		Workspace:       account.Workspace,
 		DisplayName:     account.DisplayName,
 		Email:           account.Email,
 		AvatarURL:       s.assetURL(account.AvatarPath),
@@ -115,6 +134,14 @@ func (s *Server) createSession(ctx context.Context, account accountRow) (AuthSes
 		ConsentAccepted: account.ConsentAccepted,
 		PatientStage:    account.PatientStage,
 	}, nil
+}
+
+func (s *Server) createDemoSession(ctx context.Context, role UserRole) (AuthSession, error) {
+	account, err := s.demoAccountForRole(ctx, role)
+	if err != nil {
+		return AuthSession{}, err
+	}
+	return s.createSession(ctx, account)
 }
 
 func (s *Server) deleteSession(ctx context.Context, token string) error {
@@ -142,6 +169,7 @@ func (s *Server) registerAccount(ctx context.Context, role UserRole, payload Aut
 	account := accountRow{
 		ID:            fmt.Sprintf("%s-%s", role, uuid.NewString()),
 		Role:          role,
+		Workspace:     WorkspaceLive,
 		Email:         payload.Email,
 		PasswordHash:  string(passwordHash),
 		DisplayName:   displayName,
@@ -188,15 +216,15 @@ func (s *Server) registerAccount(ctx context.Context, role UserRole, payload Aut
 		sleepJSON, _ := json.Marshal(buildSleepEntries([]float64{7.0, 6.9, 7.1, 7.0, 7.2, 6.8, 7.0}))
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO patients (
-				patient_code, account_id, email, name, procedure, doctor_name, specialty, compliance, risk, risk_score,
+				patient_code, workspace, account_id, email, name, procedure, doctor_name, specialty, compliance, risk, risk_score,
 				notes, next_appointment, surgery_duration, hospital_stay, last_consultation, streak, days_until_surgery,
-				progress, tasks, sleep_entries, surgery_decision
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+				progress, tasks, sleep_entries, latest_checkup_summary, latest_checkup_at, surgery_decision
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
 		`,
-			account.PatientCode, account.ID, account.Email, displayName, "Pending assignment", "Dr. Andi Setiawan",
-			"General Surgery", 88, "Low", 7, "Awaiting doctor assignment and first care plan.",
+			account.PatientCode, WorkspaceLive, account.ID, account.Email, displayName, "Pending assignment", "Dr. Andi Setiawan",
+			"General Surgery", 88, RiskSafe, 7, "Awaiting doctor assignment and first care plan.",
 			"No appointment yet", "TBD", "TBD", "No prior consultation", 0, 30,
-			string(progressJSON), string(tasksJSON), string(sleepJSON), DecisionNone,
+			string(progressJSON), string(tasksJSON), string(sleepJSON), "", nil, DecisionNone,
 		)
 		if err != nil {
 			return AuthSession{}, err
@@ -211,7 +239,7 @@ func (s *Server) registerAccount(ctx context.Context, role UserRole, payload Aut
 }
 
 func nextPatientCode(ctx context.Context, tx *sql.Tx) (string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT patient_code FROM patients ORDER BY patient_code`)
+	rows, err := tx.QueryContext(ctx, `SELECT patient_code FROM patients WHERE workspace = $1 ORDER BY patient_code`, WorkspaceLive)
 	if err != nil {
 		return "", err
 	}
@@ -236,6 +264,7 @@ func (s *Server) userProfile(account accountRow) UserProfile {
 	return UserProfile{
 		ID:            account.ID,
 		Role:          account.Role,
+		Workspace:     account.Workspace,
 		Email:         account.Email,
 		DisplayName:   account.DisplayName,
 		FirstName:     account.FirstName,
@@ -281,8 +310,8 @@ func (s *Server) updateProfile(ctx context.Context, account accountRow, payload 
 
 	if account.PatientCode != "" {
 		if _, err := s.db.ExecContext(ctx, `
-			UPDATE patients SET name = $2, updated_at = NOW() WHERE patient_code = $1
-		`, account.PatientCode, displayName); err != nil {
+			UPDATE patients SET name = $3, updated_at = NOW() WHERE workspace = $1 AND patient_code = $2
+		`, account.Workspace, account.PatientCode, displayName); err != nil {
 			return accountRow{}, err
 		}
 	}
@@ -368,53 +397,59 @@ func (s *Server) updateAvatar(ctx context.Context, account accountRow, payload U
 }
 
 type patientRow struct {
-	PatientCode      string
-	AccountID        string
-	DoctorAccountID  string
-	Email            string
-	Name             string
-	Procedure        string
-	DoctorName       string
-	Specialty        string
-	Compliance       int
-	Risk             RiskLevel
-	RiskScore        int
-	Notes            string
-	NextAppointment  string
-	SurgeryDuration  string
-	HospitalStay     string
-	LastConsultation string
-	Streak           int
-	DaysUntilSurgery int
-	ProgressJSON     []byte
-	TasksJSON        []byte
-	SleepEntriesJSON []byte
-	SurgeryDecision  SurgeryDecision
-	AvatarPath       string
+	PatientCode          string
+	Workspace            Workspace
+	AccountID            string
+	DoctorAccountID      string
+	Email                string
+	Name                 string
+	Procedure            string
+	DoctorName           string
+	Specialty            string
+	Compliance           int
+	Risk                 RiskLevel
+	RiskScore            int
+	Notes                string
+	NextAppointment      string
+	SurgeryDuration      string
+	HospitalStay         string
+	LastConsultation     string
+	Streak               int
+	DaysUntilSurgery     int
+	ProgressJSON         []byte
+	TasksJSON            []byte
+	SleepEntriesJSON     []byte
+	LatestCheckupSummary string
+	LatestCheckupAt      sql.NullTime
+	SurgeryDecision      SurgeryDecision
+	AvatarPath           string
 }
 
-func (s *Server) patientByCode(ctx context.Context, patientCode string) (patientRow, error) {
+func (s *Server) patientByCode(ctx context.Context, workspace Workspace, patientCode string) (patientRow, error) {
 	var row patientRow
 	err := s.db.QueryRowContext(ctx, `
-		SELECT p.patient_code, COALESCE(p.account_id, ''), COALESCE(p.doctor_account_id, ''), p.email, p.name,
+		SELECT p.patient_code, p.workspace, COALESCE(p.account_id, ''), COALESCE(p.doctor_account_id, ''), p.email, p.name,
 		       p.procedure, p.doctor_name, p.specialty, p.compliance, p.risk, p.risk_score, p.notes,
 		       p.next_appointment, p.surgery_duration, p.hospital_stay, p.last_consultation, p.streak,
-		       p.days_until_surgery, p.progress, p.tasks, p.sleep_entries, p.surgery_decision,
+		       p.days_until_surgery, p.progress, p.tasks, p.sleep_entries, p.latest_checkup_summary,
+		       p.latest_checkup_at, p.surgery_decision,
 		       COALESCE(a.avatar_path, '')
 		FROM patients AS p
 		LEFT JOIN accounts AS a ON a.id = p.account_id
-		WHERE p.patient_code = $1
-	`, patientCode).Scan(
-		&row.PatientCode, &row.AccountID, &row.DoctorAccountID, &row.Email, &row.Name, &row.Procedure, &row.DoctorName,
+		WHERE p.workspace = $1 AND p.patient_code = $2
+	`, workspace, patientCode).Scan(
+		&row.PatientCode, &row.Workspace, &row.AccountID, &row.DoctorAccountID, &row.Email, &row.Name, &row.Procedure, &row.DoctorName,
 		&row.Specialty, &row.Compliance, &row.Risk, &row.RiskScore, &row.Notes, &row.NextAppointment,
 		&row.SurgeryDuration, &row.HospitalStay, &row.LastConsultation, &row.Streak, &row.DaysUntilSurgery,
-		&row.ProgressJSON, &row.TasksJSON, &row.SleepEntriesJSON, &row.SurgeryDecision, &row.AvatarPath,
+		&row.ProgressJSON, &row.TasksJSON, &row.SleepEntriesJSON, &row.LatestCheckupSummary, &row.LatestCheckupAt,
+		&row.SurgeryDecision, &row.AvatarPath,
 	)
 	return row, err
 }
 
 type carePlanRow struct {
 	ID              string
+	Workspace       Workspace
 	PatientCode     string
 	InviteID        string
 	Procedure       string
@@ -427,14 +462,14 @@ type carePlanRow struct {
 	CreatedAt       time.Time
 }
 
-func (s *Server) carePlansForPatient(ctx context.Context, patientCode string) ([]carePlanRow, error) {
+func (s *Server) carePlansForPatient(ctx context.Context, workspace Workspace, patientCode string) ([]carePlanRow, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, patient_code, invite_id, procedure, surgery_date, COALESCE(surgery_document, '{}'::jsonb),
+		SELECT id, workspace, patient_code, invite_id, procedure, surgery_date, COALESCE(surgery_document, '{}'::jsonb),
 		       medications, diet, invite_status, accepted_at, created_at
 		FROM care_plans
-		WHERE patient_code = $1
+		WHERE workspace = $1 AND patient_code = $2
 		ORDER BY created_at DESC
-	`, patientCode)
+	`, workspace, patientCode)
 	if err != nil {
 		return nil, err
 	}
@@ -443,7 +478,7 @@ func (s *Server) carePlansForPatient(ctx context.Context, patientCode string) ([
 	var plans []carePlanRow
 	for rows.Next() {
 		var row carePlanRow
-		if err := rows.Scan(&row.ID, &row.PatientCode, &row.InviteID, &row.Procedure, &row.SurgeryDate, &row.SurgeryDocument, &row.MedicationsJSON, &row.DietJSON, &row.InviteStatus, &row.AcceptedAt, &row.CreatedAt); err != nil {
+		if err := rows.Scan(&row.ID, &row.Workspace, &row.PatientCode, &row.InviteID, &row.Procedure, &row.SurgeryDate, &row.SurgeryDocument, &row.MedicationsJSON, &row.DietJSON, &row.InviteStatus, &row.AcceptedAt, &row.CreatedAt); err != nil {
 			return nil, err
 		}
 		plans = append(plans, row)
@@ -483,16 +518,16 @@ func derivedDocument(raw []byte, assetResolver func(string) string) *SurgeryPlan
 	return &value
 }
 
-func (s *Server) effectivePlans(ctx context.Context, patientCode string) (*carePlanRow, *carePlanRow, error) {
-	plans, err := s.carePlansForPatient(ctx, patientCode)
+func (s *Server) effectivePlans(ctx context.Context, workspace Workspace, patientCode string) (*carePlanRow, *carePlanRow, error) {
+	plans, err := s.carePlansForPatient(ctx, workspace, patientCode)
 	if err != nil {
 		return nil, nil, err
 	}
 	return selectPlan(plans, InviteActive), selectPlan(plans, InvitePending), nil
 }
 
-func (s *Server) doctorVisiblePlan(ctx context.Context, patientCode string) (*carePlanRow, error) {
-	active, pending, err := s.effectivePlans(ctx, patientCode)
+func (s *Server) doctorVisiblePlan(ctx context.Context, workspace Workspace, patientCode string) (*carePlanRow, error) {
+	active, pending, err := s.effectivePlans(ctx, workspace, patientCode)
 	if err != nil {
 		return nil, err
 	}
@@ -502,8 +537,8 @@ func (s *Server) doctorVisiblePlan(ctx context.Context, patientCode string) (*ca
 	return active, nil
 }
 
-func (s *Server) patientVisiblePlan(ctx context.Context, patientCode string) (*carePlanRow, error) {
-	active, pending, err := s.effectivePlans(ctx, patientCode)
+func (s *Server) patientVisiblePlan(ctx context.Context, workspace Workspace, patientCode string) (*carePlanRow, error) {
+	active, pending, err := s.effectivePlans(ctx, workspace, patientCode)
 	if err != nil {
 		return nil, err
 	}
@@ -513,12 +548,12 @@ func (s *Server) patientVisiblePlan(ctx context.Context, patientCode string) (*c
 	return pending, nil
 }
 
-func (s *Server) patientInvite(ctx context.Context, patientCode string) (*PatientInvite, error) {
-	patient, err := s.patientByCode(ctx, patientCode)
+func (s *Server) patientInvite(ctx context.Context, workspace Workspace, patientCode string) (*PatientInvite, error) {
+	patient, err := s.patientByCode(ctx, workspace, patientCode)
 	if err != nil {
 		return nil, err
 	}
-	active, pending, err := s.effectivePlans(ctx, patientCode)
+	active, pending, err := s.effectivePlans(ctx, workspace, patientCode)
 	if err != nil {
 		return nil, err
 	}
@@ -543,7 +578,7 @@ func (s *Server) patientInvite(ctx context.Context, patientCode string) (*Patien
 	}, nil
 }
 
-func (s *Server) acceptInvite(ctx context.Context, patientCode string) error {
+func (s *Server) acceptInvite(ctx context.Context, workspace Workspace, patientCode string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -551,16 +586,16 @@ func (s *Server) acceptInvite(ctx context.Context, patientCode string) error {
 	defer tx.Rollback()
 
 	if _, err := tx.ExecContext(ctx, `
-		UPDATE care_plans SET invite_status = $2, updated_at = NOW()
-		WHERE patient_code = $1 AND invite_status = $3
-	`, patientCode, InviteArchived, InviteActive); err != nil {
+		UPDATE care_plans SET invite_status = $3, updated_at = NOW()
+		WHERE workspace = $1 AND patient_code = $2 AND invite_status = $4
+	`, workspace, patientCode, InviteArchived, InviteActive); err != nil {
 		return err
 	}
 
 	result, err := tx.ExecContext(ctx, `
-		UPDATE care_plans SET invite_status = $2, accepted_at = NOW(), updated_at = NOW()
-		WHERE patient_code = $1 AND invite_status = $3
-	`, patientCode, InviteActive, InvitePending)
+		UPDATE care_plans SET invite_status = $3, accepted_at = NOW(), updated_at = NOW()
+		WHERE workspace = $1 AND patient_code = $2 AND invite_status = $4
+	`, workspace, patientCode, InviteActive, InvitePending)
 	if err != nil {
 		return err
 	}
@@ -570,8 +605,8 @@ func (s *Server) acceptInvite(ctx context.Context, patientCode string) error {
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		UPDATE accounts SET patient_stage = $2, updated_at = NOW() WHERE patient_code = $1
-	`, patientCode, StageSurgery); err != nil {
+		UPDATE accounts SET patient_stage = $3, updated_at = NOW() WHERE workspace = $1 AND patient_code = $2
+	`, workspace, patientCode, StageSurgery); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -579,12 +614,12 @@ func (s *Server) acceptInvite(ctx context.Context, patientCode string) error {
 
 func riskStatus(risk RiskLevel) string {
 	switch risk {
-	case "High":
+	case RiskIntervene:
 		return "Needs Intervention"
-	case "Medium":
+	case RiskBorderline:
 		return "Warning"
 	default:
-		return "On Track"
+		return "Safe"
 	}
 }
 
@@ -657,13 +692,13 @@ func surgeryEvent(plan *carePlanRow) CalendarEvent {
 	}
 }
 
-func (s *Server) calendarEventRows(ctx context.Context, patientCode string) ([]CalendarEvent, error) {
+func (s *Server) calendarEventRows(ctx context.Context, workspace Workspace, patientCode string) ([]CalendarEvent, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, type, title, detail, start_at, end_at, all_day, medication_id, recurrence
+		SELECT id, type, title, detail, variable_name, start_at, end_at, all_day, medication_id, recurrence
 		FROM calendar_events
-		WHERE patient_code = $1
+		WHERE workspace = $1 AND patient_code = $2
 		ORDER BY start_at ASC
-	`, patientCode)
+	`, workspace, patientCode)
 	if err != nil {
 		return nil, err
 	}
@@ -675,7 +710,7 @@ func (s *Server) calendarEventRows(ctx context.Context, patientCode string) ([]C
 		var startAt time.Time
 		var endAt sql.NullTime
 		var recurrenceRaw []byte
-		if err := rows.Scan(&event.ID, &event.Type, &event.Title, &event.Detail, &startAt, &endAt, &event.AllDay, &event.MedicationID, &recurrenceRaw); err != nil {
+		if err := rows.Scan(&event.ID, &event.Type, &event.Title, &event.Detail, &event.VariableName, &startAt, &endAt, &event.AllDay, &event.MedicationID, &recurrenceRaw); err != nil {
 			return nil, err
 		}
 		event.PreviewText = previewText(event.Title)
@@ -731,12 +766,12 @@ func mergedEvents(plan *carePlanRow, customEvents []CalendarEvent, rangeStart, r
 	return events
 }
 
-func (s *Server) patientProfile(ctx context.Context, patientCode string) (PatientProfile, error) {
-	patient, err := s.patientByCode(ctx, patientCode)
+func (s *Server) patientProfile(ctx context.Context, workspace Workspace, patientCode string) (PatientProfile, error) {
+	patient, err := s.patientByCode(ctx, workspace, patientCode)
 	if err != nil {
 		return PatientProfile{}, err
 	}
-	plan, err := s.patientVisiblePlan(ctx, patientCode)
+	plan, err := s.patientVisiblePlan(ctx, workspace, patientCode)
 	if err != nil {
 		return PatientProfile{}, err
 	}
@@ -782,16 +817,16 @@ func (s *Server) patientProfile(ctx context.Context, patientCode string) (Patien
 	}, nil
 }
 
-func (s *Server) patientTasks(ctx context.Context, patientCode string) ([]PatientTask, error) {
-	patient, err := s.patientByCode(ctx, patientCode)
+func (s *Server) patientTasks(ctx context.Context, workspace Workspace, patientCode string) ([]PatientTask, error) {
+	patient, err := s.patientByCode(ctx, workspace, patientCode)
 	if err != nil {
 		return nil, err
 	}
 	return decodeJSON(patient.TasksJSON, []PatientTask{}), nil
 }
 
-func (s *Server) updateTask(ctx context.Context, patientCode, taskID string, completed bool) ([]PatientTask, error) {
-	tasks, err := s.patientTasks(ctx, patientCode)
+func (s *Server) updateTask(ctx context.Context, workspace Workspace, patientCode, taskID string, completed bool) ([]PatientTask, error) {
+	tasks, err := s.patientTasks(ctx, workspace, patientCode)
 	if err != nil {
 		return nil, err
 	}
@@ -801,30 +836,30 @@ func (s *Server) updateTask(ctx context.Context, patientCode, taskID string, com
 		}
 	}
 	raw, _ := json.Marshal(tasks)
-	if _, err := s.db.ExecContext(ctx, `UPDATE patients SET tasks = $2, updated_at = NOW() WHERE patient_code = $1`, patientCode, string(raw)); err != nil {
+	if _, err := s.db.ExecContext(ctx, `UPDATE patients SET tasks = $3, updated_at = NOW() WHERE workspace = $1 AND patient_code = $2`, workspace, patientCode, string(raw)); err != nil {
 		return nil, err
 	}
 	return tasks, nil
 }
 
-func (s *Server) patientProgress(ctx context.Context, patientCode string) ([]ProgressPoint, error) {
-	patient, err := s.patientByCode(ctx, patientCode)
+func (s *Server) patientProgress(ctx context.Context, workspace Workspace, patientCode string) ([]ProgressPoint, error) {
+	patient, err := s.patientByCode(ctx, workspace, patientCode)
 	if err != nil {
 		return nil, err
 	}
 	return decodeJSON(patient.ProgressJSON, []ProgressPoint{}), nil
 }
 
-func (s *Server) patientMedications(ctx context.Context, patientCode string) ([]MedicationPlan, error) {
-	plan, err := s.patientVisiblePlan(ctx, patientCode)
+func (s *Server) patientMedications(ctx context.Context, workspace Workspace, patientCode string) ([]MedicationPlan, error) {
+	plan, err := s.patientVisiblePlan(ctx, workspace, patientCode)
 	if err != nil || plan == nil {
 		return []MedicationPlan{}, err
 	}
 	return decodeJSON(plan.MedicationsJSON, []MedicationPlan{}), nil
 }
 
-func (s *Server) patientDiet(ctx context.Context, patientCode string) ([]DietItem, error) {
-	plan, err := s.patientVisiblePlan(ctx, patientCode)
+func (s *Server) patientDiet(ctx context.Context, workspace Workspace, patientCode string) ([]DietItem, error) {
+	plan, err := s.patientVisiblePlan(ctx, workspace, patientCode)
 	if err != nil || plan == nil {
 		return []DietItem{}, err
 	}
@@ -846,8 +881,8 @@ func dietOrder(value DietType) int {
 	}
 }
 
-func (s *Server) patientSleep(ctx context.Context, patientCode string) (SleepSummary, error) {
-	patient, err := s.patientByCode(ctx, patientCode)
+func (s *Server) patientSleep(ctx context.Context, workspace Workspace, patientCode string) (SleepSummary, error) {
+	patient, err := s.patientByCode(ctx, workspace, patientCode)
 	if err != nil {
 		return SleepSummary{}, err
 	}
@@ -880,12 +915,25 @@ func calendarRangeForYear(year int) (time.Time, time.Time) {
 	return start, end
 }
 
-func (s *Server) patientCalendar(ctx context.Context, patientCode string, year, month int) (CalendarViewData, error) {
-	plan, err := s.patientVisiblePlan(ctx, patientCode)
+func riskPriority(risk RiskLevel, inviteStatus PendingInviteStatus) int {
+	if risk == RiskIntervene {
+		return 0
+	}
+	if risk == RiskBorderline {
+		return 1
+	}
+	if inviteStatus == InvitePending {
+		return 2
+	}
+	return 3
+}
+
+func (s *Server) patientCalendar(ctx context.Context, workspace Workspace, patientCode string, year, month int) (CalendarViewData, error) {
+	plan, err := s.patientVisiblePlan(ctx, workspace, patientCode)
 	if err != nil {
 		return CalendarViewData{}, err
 	}
-	custom, err := s.calendarEventRows(ctx, patientCode)
+	custom, err := s.calendarEventRows(ctx, workspace, patientCode)
 	if err != nil {
 		return CalendarViewData{}, err
 	}
@@ -898,12 +946,12 @@ func (s *Server) patientCalendar(ctx context.Context, patientCode string, year, 
 	}, nil
 }
 
-func (s *Server) doctorCalendar(ctx context.Context, patientCode string, year int) (CalendarViewData, error) {
-	plan, err := s.doctorVisiblePlan(ctx, patientCode)
+func (s *Server) doctorCalendar(ctx context.Context, workspace Workspace, patientCode string, year int) (CalendarViewData, error) {
+	plan, err := s.doctorVisiblePlan(ctx, workspace, patientCode)
 	if err != nil {
 		return CalendarViewData{}, err
 	}
-	custom, err := s.calendarEventRows(ctx, patientCode)
+	custom, err := s.calendarEventRows(ctx, workspace, patientCode)
 	if err != nil {
 		return CalendarViewData{}, err
 	}
@@ -917,7 +965,7 @@ func (s *Server) doctorCalendar(ctx context.Context, patientCode string, year in
 }
 
 func (s *Server) doctorDashboard(ctx context.Context, doctor accountRow) (DoctorDashboardData, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT patient_code FROM patients WHERE doctor_account_id = $1 ORDER BY patient_code`, doctor.ID)
+	rows, err := s.db.QueryContext(ctx, `SELECT patient_code FROM patients WHERE workspace = $1 AND doctor_account_id = $2 ORDER BY patient_code`, doctor.Workspace, doctor.ID)
 	if err != nil {
 		return DoctorDashboardData{}, err
 	}
@@ -934,16 +982,17 @@ func (s *Server) doctorDashboard(ctx context.Context, doctor accountRow) (Doctor
 
 	colors := []string{"#2563eb", "#14b8a6", "#f59e0b", "#ef4444", "#8b5cf6", "#10b981"}
 	patients := make([]DoctorPatientSummary, 0, len(patientCodes))
-	series := make([]ComplianceSeries, 0, len(patientCodes))
+	series := make([]MetricSeries, 0, len(patientCodes))
 	activeCount := 0
 	needsIntervention := 0
+	surgeryDates := map[string]time.Time{}
 
 	for index, patientCode := range patientCodes {
-		patient, err := s.patientByCode(ctx, patientCode)
+		patient, err := s.patientByCode(ctx, doctor.Workspace, patientCode)
 		if err != nil {
 			return DoctorDashboardData{}, err
 		}
-		plan, err := s.doctorVisiblePlan(ctx, patientCode)
+		plan, err := s.doctorVisiblePlan(ctx, doctor.Workspace, patientCode)
 		if err != nil {
 			return DoctorDashboardData{}, err
 		}
@@ -958,13 +1007,16 @@ func (s *Server) doctorDashboard(ctx context.Context, doctor accountRow) (Doctor
 			status = "Pending Acceptance"
 		}
 		progress := decodeJSON(patient.ProgressJSON, []ProgressPoint{})
-		trend := make([]int, 0, len(progress))
+		metrics := make([]int, 0, len(progress))
 		labels := make([]string, 0, len(progress))
 		values := make([]int, 0, len(progress))
 		for _, point := range progress {
-			trend = append(trend, point.Compliance)
+			metrics = append(metrics, point.Compliance)
 			labels = append(labels, point.Day)
 			values = append(values, point.Compliance)
+		}
+		if plan != nil {
+			surgeryDates[patient.PatientCode] = plan.SurgeryDate
 		}
 		patients = append(patients, DoctorPatientSummary{
 			ID:           patient.PatientCode,
@@ -975,9 +1027,9 @@ func (s *Server) doctorDashboard(ctx context.Context, doctor accountRow) (Doctor
 			Status:       status,
 			InviteStatus: inviteStatus,
 			AvatarURL:    s.assetURL(patient.AvatarPath),
-			Trend:        trend,
+			Metrics:      metrics,
 		})
-		series = append(series, ComplianceSeries{
+		series = append(series, MetricSeries{
 			PatientID: patient.PatientCode,
 			Name:      patient.Name,
 			Color:     colors[index%len(colors)],
@@ -987,10 +1039,34 @@ func (s *Server) doctorDashboard(ctx context.Context, doctor accountRow) (Doctor
 		if inviteStatus == InviteActive {
 			activeCount += 1
 		}
-		if patient.Risk == "High" {
+		if patient.Risk == RiskIntervene {
 			needsIntervention += 1
 		}
 	}
+
+	slices.SortFunc(patients, func(left, right DoctorPatientSummary) int {
+		leftPriority := riskPriority(left.Risk, left.InviteStatus)
+		rightPriority := riskPriority(right.Risk, right.InviteStatus)
+		if leftPriority != rightPriority {
+			return leftPriority - rightPriority
+		}
+
+		leftDate, leftOk := surgeryDates[left.ID]
+		rightDate, rightOk := surgeryDates[right.ID]
+		if leftOk && rightOk && !leftDate.Equal(rightDate) {
+			if leftDate.Before(rightDate) {
+				return -1
+			}
+			return 1
+		}
+		if leftOk && !rightOk {
+			return -1
+		}
+		if !leftOk && rightOk {
+			return 1
+		}
+		return strings.Compare(left.Name, right.Name)
+	})
 
 	return DoctorDashboardData{
 		DoctorName:        doctor.DisplayName,
@@ -998,23 +1074,23 @@ func (s *Server) doctorDashboard(ctx context.Context, doctor accountRow) (Doctor
 		ActivePatients:    activeCount,
 		NeedsIntervention: needsIntervention,
 		Patients:          patients,
-		ComplianceSeries:  series,
+		MetricSeries:      series,
 	}, nil
 }
 
-func (s *Server) doctorPatientDetail(ctx context.Context, patientCode string) (PatientDetail, error) {
-	patient, err := s.patientByCode(ctx, patientCode)
+func (s *Server) doctorPatientDetail(ctx context.Context, workspace Workspace, patientCode string) (PatientDetail, error) {
+	patient, err := s.patientByCode(ctx, workspace, patientCode)
 	if err != nil {
 		return PatientDetail{}, err
 	}
-	plan, err := s.doctorVisiblePlan(ctx, patientCode)
+	plan, err := s.doctorVisiblePlan(ctx, workspace, patientCode)
 	if err != nil {
 		return PatientDetail{}, err
 	}
 	if plan == nil {
 		return PatientDetail{}, fmt.Errorf("patient has no care plan")
 	}
-	custom, err := s.calendarEventRows(ctx, patientCode)
+	custom, err := s.calendarEventRows(ctx, workspace, patientCode)
 	if err != nil {
 		return PatientDetail{}, err
 	}
@@ -1027,6 +1103,10 @@ func (s *Server) doctorPatientDetail(ctx context.Context, patientCode string) (P
 	status := riskStatus(patient.Risk)
 	if plan.InviteStatus == InvitePending {
 		status = "Pending Acceptance"
+	}
+	riskEntries, err := s.riskScoreEntries(ctx, workspace, patientCode)
+	if err != nil {
+		return PatientDetail{}, err
 	}
 	return PatientDetail{
 		ID:              patient.PatientCode,
@@ -1046,13 +1126,15 @@ func (s *Server) doctorPatientDetail(ctx context.Context, patientCode string) (P
 		Medications:     medications,
 		Diet:            diet,
 		CalendarPreview: mergedEvents(plan, custom, previewStart, previewEnd),
-		Progress:        progress,
+		Metrics:         progress,
+		RiskEntries:     riskEntries,
+		LatestCheckup:   latestCheckupValue(patient),
 		SurgeryDecision: patient.SurgeryDecision,
 	}, nil
 }
 
-func (s *Server) lookupPatient(ctx context.Context, patientCode string) (PatientProfile, error) {
-	patient, err := s.patientByCode(ctx, patientCode)
+func (s *Server) lookupPatient(ctx context.Context, workspace Workspace, patientCode string) (PatientProfile, error) {
+	patient, err := s.patientByCode(ctx, workspace, patientCode)
 	if err != nil {
 		return PatientProfile{}, err
 	}
@@ -1077,8 +1159,8 @@ func (s *Server) lookupPatient(ctx context.Context, patientCode string) (Patient
 	}, nil
 }
 
-func (s *Server) createPendingCarePlan(ctx context.Context, draft CarePlanDraft) error {
-	patient, err := s.patientByCode(ctx, draft.PatientID)
+func (s *Server) createPendingCarePlan(ctx context.Context, workspace Workspace, draft CarePlanDraft) error {
+	patient, err := s.patientByCode(ctx, workspace, draft.PatientID)
 	if err != nil {
 		return err
 	}
@@ -1089,9 +1171,9 @@ func (s *Server) createPendingCarePlan(ctx context.Context, draft CarePlanDraft)
 	defer tx.Rollback()
 
 	if _, err := tx.ExecContext(ctx, `
-		UPDATE care_plans SET invite_status = $2, updated_at = NOW()
-		WHERE patient_code = $1 AND invite_status = $3
-	`, draft.PatientID, InviteArchived, InvitePending); err != nil {
+		UPDATE care_plans SET invite_status = $3, updated_at = NOW()
+		WHERE workspace = $1 AND patient_code = $2 AND invite_status = $4
+	`, workspace, draft.PatientID, InviteArchived, InvitePending); err != nil {
 		return err
 	}
 
@@ -1116,11 +1198,11 @@ func (s *Server) createPendingCarePlan(ctx context.Context, draft CarePlanDraft)
 
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO care_plans (
-			id, patient_code, invite_id, procedure, surgery_date, surgery_document,
+			id, workspace, patient_code, invite_id, procedure, surgery_date, surgery_document,
 			medications, diet, invite_status
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 	`,
-		uuid.NewString(), draft.PatientID, fmt.Sprintf("invite-%s-%d", draft.PatientID, time.Now().Unix()), patient.Procedure,
+		uuid.NewString(), workspace, draft.PatientID, fmt.Sprintf("invite-%s-%d", draft.PatientID, time.Now().Unix()), patient.Procedure,
 		draft.SurgeryDate, documentJSON, string(medicationsJSON), string(dietJSON), InvitePending,
 	)
 	if err != nil {
@@ -1129,7 +1211,7 @@ func (s *Server) createPendingCarePlan(ctx context.Context, draft CarePlanDraft)
 	return tx.Commit()
 }
 
-func (s *Server) createCalendarEvent(ctx context.Context, patientCode, userID string, payload CalendarEventCreatePayload) error {
+func (s *Server) createCalendarEvent(ctx context.Context, workspace Workspace, patientCode, userID string, payload CalendarEventCreatePayload) error {
 	var recurrenceJSON interface{}
 	if payload.Recurrence != nil && payload.Recurrence.Mode != "" && payload.Recurrence.Mode != "does-not-repeat" {
 		raw, _ := json.Marshal(payload.Recurrence)
@@ -1137,19 +1219,216 @@ func (s *Server) createCalendarEvent(ctx context.Context, patientCode, userID st
 	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO calendar_events (
-			id, patient_code, type, title, detail, start_at, end_at, all_day, medication_id, recurrence, created_by_user_id
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+			id, workspace, patient_code, type, title, detail, variable_name, start_at, end_at, all_day, medication_id, recurrence, created_by_user_id
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 	`,
-		uuid.NewString(), patientCode, payload.Type, payload.Title, payload.Detail, payload.StartAt,
+		uuid.NewString(), workspace, patientCode, payload.Type, payload.Title, payload.Detail, payload.VariableName, payload.StartAt,
 		nullIfEmpty(payload.EndAt), payload.AllDay, payload.MedicationID, recurrenceJSON, userID,
 	)
 	return err
 }
 
-func (s *Server) setSurgeryDecision(ctx context.Context, patientCode string, decision SurgeryDecision) error {
+func (s *Server) setSurgeryDecision(ctx context.Context, workspace Workspace, patientCode string, decision SurgeryDecision) error {
 	if decision != DecisionProceed && decision != DecisionPostpone && decision != DecisionNone {
 		return fmt.Errorf("invalid surgery decision")
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE patients SET surgery_decision = $2, updated_at = NOW() WHERE patient_code = $1`, patientCode, decision)
+	_, err := s.db.ExecContext(ctx, `UPDATE patients SET surgery_decision = $3, updated_at = NOW() WHERE workspace = $1 AND patient_code = $2`, workspace, patientCode, decision)
 	return err
+}
+
+func latestCheckupValue(patient patientRow) LatestCheckup {
+	value := LatestCheckup{
+		Summary: strings.TrimSpace(patient.LatestCheckupSummary),
+	}
+	if patient.LatestCheckupAt.Valid {
+		value.CheckedAt = patient.LatestCheckupAt.Time.Format(time.RFC3339)
+	}
+	return value
+}
+
+func (s *Server) riskScoreEntries(ctx context.Context, workspace Workspace, patientCode string) ([]RiskScoreEntry, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, patient_code, variable_name, score, note, author_name, created_at
+		FROM risk_score_entries
+		WHERE workspace = $1 AND patient_code = $2
+		ORDER BY created_at DESC
+	`, workspace, patientCode)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []RiskScoreEntry
+	for rows.Next() {
+		var item RiskScoreEntry
+		var createdAt time.Time
+		if err := rows.Scan(&item.ID, &item.PatientID, &item.VariableName, &item.Score, &item.Note, &item.AuthorName, &createdAt); err != nil {
+			return nil, err
+		}
+		item.CreatedAt = createdAt.Format(time.RFC3339)
+		entries = append(entries, item)
+	}
+	return entries, rows.Err()
+}
+
+func riskLevelFromScore(total int) RiskLevel {
+	switch {
+	case total >= 15:
+		return RiskIntervene
+	case total >= 10:
+		return RiskBorderline
+	default:
+		return RiskSafe
+	}
+}
+
+func (s *Server) recalculatePatientRisk(ctx context.Context, tx *sql.Tx, workspace Workspace, patientCode string) error {
+	rows, err := tx.QueryContext(ctx, `
+		SELECT score
+		FROM risk_score_entries
+		WHERE workspace = $1 AND patient_code = $2
+	`, workspace, patientCode)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	total := 0
+	for rows.Next() {
+		var score int
+		if err := rows.Scan(&score); err != nil {
+			return err
+		}
+		total += score
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	var progressRaw []byte
+	if err := tx.QueryRowContext(ctx, `SELECT progress FROM patients WHERE workspace = $1 AND patient_code = $2`, workspace, patientCode).Scan(&progressRaw); err != nil {
+		return err
+	}
+	points := decodeJSON(progressRaw, []ProgressPoint{})
+	if len(points) > 0 {
+		points[len(points)-1].Risk = total
+	}
+	nextProgress, _ := json.Marshal(points)
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE patients
+		SET risk = $3, risk_score = $4, progress = $5, updated_at = NOW()
+		WHERE workspace = $1 AND patient_code = $2
+	`, workspace, patientCode, riskLevelFromScore(total), total, string(nextProgress))
+	return err
+}
+
+func (s *Server) createRiskScoreEntry(ctx context.Context, workspace Workspace, patientCode string, account accountRow, payload RiskScoreCreatePayload) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO risk_score_entries (
+			id, workspace, patient_code, variable_name, score, note, author_user_id, author_name
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+	`, uuid.NewString(), workspace, patientCode, strings.TrimSpace(payload.VariableName), payload.Score, strings.TrimSpace(payload.Note), account.ID, account.DisplayName); err != nil {
+		return err
+	}
+
+	if err := s.recalculatePatientRisk(ctx, tx, workspace, patientCode); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (s *Server) latestCheckup(ctx context.Context, workspace Workspace, patientCode string) (LatestCheckup, error) {
+	patient, err := s.patientByCode(ctx, workspace, patientCode)
+	if err != nil {
+		return LatestCheckup{}, err
+	}
+	return latestCheckupValue(patient), nil
+}
+
+func (s *Server) updateLatestCheckup(ctx context.Context, workspace Workspace, patientCode string, payload LatestCheckupPayload) (LatestCheckup, error) {
+	summary := strings.TrimSpace(payload.Summary)
+	var checkedAtValue interface{}
+	lastConsultation := "No recent checkup"
+	if strings.TrimSpace(payload.CheckedAt) != "" {
+		parsed, err := time.Parse(time.RFC3339, payload.CheckedAt)
+		if err != nil {
+			return LatestCheckup{}, err
+		}
+		checkedAtValue = parsed
+		lastConsultation = parsed.Format("January 2, 2006")
+	}
+
+	if _, err := s.db.ExecContext(ctx, `
+		UPDATE patients
+		SET latest_checkup_summary = $3, latest_checkup_at = $4, last_consultation = $5, updated_at = NOW()
+		WHERE workspace = $1 AND patient_code = $2
+	`, workspace, patientCode, summary, checkedAtValue, lastConsultation); err != nil {
+		return LatestCheckup{}, err
+	}
+
+	return s.latestCheckup(ctx, workspace, patientCode)
+}
+
+func (s *Server) chatThread(ctx context.Context, workspace Workspace, patientCode string) (ChatThread, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, sender_role, sender_name, body, created_at
+		FROM chat_messages
+		WHERE workspace = $1 AND patient_code = $2
+		ORDER BY created_at ASC
+	`, workspace, patientCode)
+	if err != nil {
+		return ChatThread{}, err
+	}
+	defer rows.Close()
+
+	thread := ChatThread{PatientID: patientCode, Messages: []ChatMessage{}}
+	for rows.Next() {
+		var item ChatMessage
+		var createdAt time.Time
+		if err := rows.Scan(&item.ID, &item.SenderRole, &item.SenderName, &item.Body, &createdAt); err != nil {
+			return ChatThread{}, err
+		}
+		item.PatientID = patientCode
+		item.CreatedAt = createdAt.Format(time.RFC3339)
+		thread.Messages = append(thread.Messages, item)
+	}
+	return thread, rows.Err()
+}
+
+func (s *Server) createChatMessage(ctx context.Context, workspace Workspace, patientCode string, account accountRow, payload ChatMessageCreatePayload) (ChatMessage, error) {
+	message := ChatMessage{
+		ID:         uuid.NewString(),
+		PatientID:  patientCode,
+		SenderRole: account.Role,
+		SenderName: account.DisplayName,
+		Body:       strings.TrimSpace(payload.Body),
+		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
+	}
+	if message.Body == "" {
+		return ChatMessage{}, fmt.Errorf("message body is required")
+	}
+
+	createdAt, err := time.Parse(time.RFC3339, message.CreatedAt)
+	if err != nil {
+		return ChatMessage{}, err
+	}
+
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO chat_messages (
+			id, workspace, patient_code, sender_user_id, sender_role, sender_name, body, created_at
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+	`, message.ID, workspace, patientCode, account.ID, account.Role, account.DisplayName, message.Body, createdAt)
+	if err != nil {
+		return ChatMessage{}, err
+	}
+
+	return message, nil
 }

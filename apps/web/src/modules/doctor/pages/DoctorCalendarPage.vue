@@ -65,6 +65,12 @@
                 <div class="flex items-start justify-between gap-3">
                   <div>
                     <p class="font-semibold text-slate-900">{{ event.title }}</p>
+                    <p
+                      v-if="event.variableName"
+                      class="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] theme-accent-text"
+                    >
+                      {{ event.variableName }}
+                    </p>
                     <p class="mt-2 text-[13px] leading-6 text-slate-600">{{ event.detail }}</p>
                   </div>
                   <span class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">

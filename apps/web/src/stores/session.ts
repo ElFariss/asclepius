@@ -45,6 +45,7 @@ export const useSessionStore = defineStore("session", () => {
 
   const isAuthenticated = computed(() => Boolean(session.value?.token));
   const role = computed<UserRole | null>(() => session.value?.role ?? null);
+  const workspace = computed(() => session.value?.workspace ?? "live");
   const token = computed(() => session.value?.token ?? "");
   const userId = computed(() => session.value?.userId ?? "");
   const consentAccepted = computed(() => session.value?.consentAccepted ?? false);
@@ -98,6 +99,12 @@ export const useSessionStore = defineStore("session", () => {
 
   const register = async (roleValue: UserRole, payload: AuthFormPayload) => {
     const nextSession = await authGateway.register(roleValue, payload);
+    persist(nextSession);
+    await refreshProfile();
+  };
+
+  const createDemoSession = async (roleValue: UserRole) => {
+    const nextSession = await authGateway.createDemoSession({ role: roleValue });
     persist(nextSession);
     await refreshProfile();
   };
@@ -189,6 +196,7 @@ export const useSessionStore = defineStore("session", () => {
     consentAccepted,
     defaultHomeRoute,
     displayName,
+    createDemoSession,
     hydrate,
     hydrated,
     isAuthenticated,
@@ -204,5 +212,6 @@ export const useSessionStore = defineStore("session", () => {
     updateProfile,
     uploadAvatar,
     userId,
+    workspace,
   };
 });

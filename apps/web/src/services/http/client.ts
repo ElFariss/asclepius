@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim() ?? "";
 
 export interface RequestOptions extends RequestInit {
   token?: string;
@@ -12,6 +12,8 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
+
+const apiBaseLabel = API_BASE_URL || "the local /api proxy";
 
 export const apiBaseUrl = API_BASE_URL;
 
@@ -33,7 +35,7 @@ export const request = async <T>(path: string, options: RequestOptions = {}): Pr
   } catch {
     throw new ApiError(
       0,
-      `Cannot reach the API at ${API_BASE_URL}. Start PostgreSQL with "npm run db:up" and the Go API with "npm run dev:api".`,
+      `Cannot reach the API via ${apiBaseLabel}. Start PostgreSQL with "npm run db:up", the Go API with "npm run dev:api", and the frontend with "npm run dev".`,
     );
   }
 

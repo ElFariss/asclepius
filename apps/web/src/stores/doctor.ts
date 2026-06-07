@@ -8,8 +8,10 @@ import type {
   CalendarViewData,
   CarePlanDraft,
   DoctorDashboardData,
+  LatestCheckup,
   PatientDetail,
   PatientLookupRecord,
+  RiskScoreCreatePayload,
   SurgeryDecision,
 } from "@/types/domain";
 
@@ -96,6 +98,28 @@ export const useDoctorStore = defineStore("doctor", () => {
     await loadPatient(patientId);
   };
 
+  const createRiskScore = async (patientId: string, payload: RiskScoreCreatePayload) => {
+    if (!currentToken()) {
+      return;
+    }
+    await doctorGateway.createRiskScore(currentToken(), patientId, payload);
+    await Promise.all([loadDashboard(), loadPatient(patientId)]);
+  };
+
+  const updateLatestCheckup = async (patientId: string, payload: LatestCheckup) => {
+    if (!currentToken()) {
+      return null;
+    }
+    const nextValue = await doctorGateway.updateLatestCheckup(currentToken(), patientId, payload);
+    if (currentPatient.value?.id === patientId) {
+      currentPatient.value = {
+        ...currentPatient.value,
+        latestCheckup: nextValue,
+      };
+    }
+    return nextValue;
+  };
+
   const setSurgeryDecision = async (patientId: string, currentDecision: SurgeryDecision, nextDecision: SurgeryDecision) => {
     if (!currentToken()) {
       return;
@@ -120,6 +144,7 @@ export const useDoctorStore = defineStore("doctor", () => {
 
   return {
     createCalendarEvent,
+    createRiskScore,
     currentCalendar,
     currentDraft,
     currentPatient,
@@ -135,5 +160,6 @@ export const useDoctorStore = defineStore("doctor", () => {
     resetDraft,
     setDraft,
     setSurgeryDecision,
+    updateLatestCheckup,
   };
 });

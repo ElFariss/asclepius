@@ -8,9 +8,13 @@ import { request } from "@/services/http/client";
 import type {
   AuthFormPayload,
   AuthSession,
+  ChatMessageCreatePayload,
   CalendarEventCreatePayload,
   CarePlanDraft,
+  DemoSessionPayload,
+  LatestCheckup,
   PatientInvite,
+  RiskScoreCreatePayload,
   SurgeryDecision,
   UploadAssetPayload,
   UpdateProfilePayload,
@@ -29,6 +33,13 @@ export const authGateway: AuthGateway = {
     const response = await request<{ token: string; session: AuthSession }>(`/api/auth/register?role=${role}`, {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+    return response.session;
+  },
+  async createDemoSession(payload) {
+    const response = await request<{ token: string; session: AuthSession }>("/api/demo/session", {
+      method: "POST",
+      body: JSON.stringify(payload satisfies DemoSessionPayload),
     });
     return response.session;
   },
@@ -108,6 +119,16 @@ export const patientGateway: PatientGateway = {
   async getSleepSummary(token) {
     return request("/api/patient/sleep", { token });
   },
+  async getChat(token) {
+    return request("/api/patient/chat", { token });
+  },
+  async sendChat(token, payload) {
+    return request("/api/patient/chat", {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload satisfies ChatMessageCreatePayload),
+    });
+  },
   async advanceStage(token, stage) {
     await request<void>("/api/patient/stage", {
       method: "PATCH",
@@ -151,6 +172,36 @@ export const doctorGateway: DoctorGateway = {
   async createCalendarEvent(token, patientId, payload) {
     await request<void>(`/api/doctor/patients/${patientId}/calendar-events`, {
       method: "POST",
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  async getChat(token, patientId) {
+    return request(`/api/doctor/patients/${patientId}/chat`, { token });
+  },
+  async sendChat(token, patientId, payload) {
+    return request(`/api/doctor/patients/${patientId}/chat`, {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload satisfies ChatMessageCreatePayload),
+    });
+  },
+  async getRiskScores(token, patientId) {
+    return request(`/api/doctor/patients/${patientId}/risk-scores`, { token });
+  },
+  async createRiskScore(token, patientId, payload) {
+    await request<void>(`/api/doctor/patients/${patientId}/risk-scores`, {
+      method: "POST",
+      token,
+      body: JSON.stringify(payload satisfies RiskScoreCreatePayload),
+    });
+  },
+  async getLatestCheckup(token, patientId) {
+    return request<LatestCheckup>(`/api/doctor/patients/${patientId}/latest-checkup`, { token });
+  },
+  async updateLatestCheckup(token, patientId, payload) {
+    return request<LatestCheckup>(`/api/doctor/patients/${patientId}/latest-checkup`, {
+      method: "PATCH",
       token,
       body: JSON.stringify(payload),
     });

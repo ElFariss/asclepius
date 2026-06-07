@@ -33,7 +33,7 @@
         </div>
 
         <div class="mt-5 h-56">
-          <TrendChart
+          <MetricsChart
             :fill="false"
             :labels="labels"
             :max="10"
@@ -67,7 +67,7 @@ import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ArrowLeft } from "lucide-vue-next";
 
-import TrendChart from "@/components/charts/TrendChart.vue";
+import MetricsChart from "@/components/charts/MetricsChart.vue";
 import { formatSleepStatus } from "@/modules/shared/utils/carePlan";
 import { usePatientStore } from "@/stores/patient";
 

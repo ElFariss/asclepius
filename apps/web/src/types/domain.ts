@@ -1,5 +1,6 @@
 export type UserRole = "patient" | "doctor";
-export type RiskLevel = "Low" | "Medium" | "High";
+export type Workspace = "live" | "demo";
+export type RiskLevel = "Safe" | "Borderline" | "Intervene";
 export type TaskCategory = "medication" | "exercise" | "nutrition";
 export type PatientJourneyStage = "empty" | "invite" | "surgery" | "consent" | "dashboard";
 export type SurgeryDecision = "none" | "proceed" | "postpone";
@@ -22,6 +23,7 @@ export interface AuthSession {
   token: string;
   userId: string;
   role: UserRole;
+  workspace: Workspace;
   displayName: string;
   email: string;
   avatarUrl: string;
@@ -31,11 +33,13 @@ export interface AuthSession {
   patientStage: PatientJourneyStage;
 }
 
-export interface ProgressPoint {
+export interface PatientMetricPoint {
   day: string;
   compliance: number;
   risk: number;
 }
+
+export type ProgressPoint = PatientMetricPoint;
 
 export interface PatientTask {
   id: string;
@@ -81,6 +85,35 @@ export interface DietItem {
   type: DietType;
 }
 
+export interface LatestCheckup {
+  summary: string;
+  checkedAt: string;
+}
+
+export interface RiskScoreEntry {
+  id: string;
+  patientId: string;
+  variableName: string;
+  score: number;
+  note: string;
+  authorName: string;
+  createdAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  patientId: string;
+  senderRole: UserRole;
+  senderName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface ChatThread {
+  patientId: string;
+  messages: ChatMessage[];
+}
+
 export interface RecurrenceEnd {
   type: "never" | "on-date" | "after-occurrences";
   endDate?: string;
@@ -106,6 +139,7 @@ export interface CalendarEventSummary {
 }
 
 export interface CalendarEventDetail extends CalendarEventSummary {
+  variableName?: string;
   startAt?: string;
   endAt?: string;
   allDay: boolean;
@@ -202,10 +236,10 @@ export interface DoctorPatientSummary {
   status: string;
   inviteStatus: PendingInviteStatus;
   avatarUrl: string;
-  trend: number[];
+  metrics: number[];
 }
 
-export interface ComplianceSeries {
+export interface MetricSeries {
   patientId: string;
   name: string;
   color: string;
@@ -219,7 +253,7 @@ export interface DoctorDashboardData {
   activePatients: number;
   needsIntervention: number;
   patients: DoctorPatientSummary[];
-  complianceSeries: ComplianceSeries[];
+  metricSeries: MetricSeries[];
 }
 
 export interface PatientDetail {
@@ -240,13 +274,16 @@ export interface PatientDetail {
   medications: MedicationPlan[];
   diet: DietItem[];
   calendarPreview: CalendarEvent[];
-  progress: ProgressPoint[];
+  metrics: PatientMetricPoint[];
+  riskEntries: RiskScoreEntry[];
+  latestCheckup: LatestCheckup;
   surgeryDecision: SurgeryDecision;
 }
 
 export interface UserProfile {
   id: string;
   role: UserRole;
+  workspace: Workspace;
   email: string;
   displayName: string;
   firstName: string;
@@ -276,9 +313,24 @@ export interface CalendarEventCreatePayload {
   type: CalendarEventType;
   title: string;
   detail: string;
+  variableName?: string;
   startAt: string;
   endAt?: string;
   allDay: boolean;
   medicationId?: string;
   recurrence?: RecurrenceRule | null;
+}
+
+export interface RiskScoreCreatePayload {
+  variableName: string;
+  score: number;
+  note: string;
+}
+
+export interface ChatMessageCreatePayload {
+  body: string;
+}
+
+export interface DemoSessionPayload {
+  role: UserRole;
 }

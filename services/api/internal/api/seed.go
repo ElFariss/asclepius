@@ -13,7 +13,7 @@ import (
 
 func seedIfNeeded(ctx context.Context, db *sql.DB) error {
 	var count int
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM accounts`).Scan(&count); err != nil {
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM accounts WHERE workspace = $1`, WorkspaceDemo).Scan(&count); err != nil {
 		return err
 	}
 	if count > 0 {
@@ -26,9 +26,10 @@ func seedIfNeeded(ctx context.Context, db *sql.DB) error {
 	}
 
 	doctor := accountRow{
-		ID:            "doctor-1",
+		ID:            "demo-doctor-1",
 		Role:          RoleDoctor,
-		Email:         "dr.andi@hospital.com",
+		Workspace:     WorkspaceDemo,
+		Email:         "demo.doctor@archangel.local",
 		PasswordHash:  string(passwordHash),
 		DisplayName:   "Dr. Andi Setiawan",
 		FirstName:     "Andi",
@@ -72,23 +73,25 @@ func seedIfNeeded(ctx context.Context, db *sql.DB) error {
 	}{
 		{
 			Account: accountRow{
-				ID:           "patient-1",
-				Role:         RolePatient,
-				Email:        "patient@example.com",
-				PasswordHash: string(passwordHash),
-				DisplayName:  "Budi Santoso",
-				FirstName:    "Budi",
-				LastName:     "Santoso",
-				ThemeMode:    ThemeBlueMedical,
-				AccentColor:  "#2563eb",
-				PatientCode:  "p1",
-				PatientStage: StageEmpty,
+				ID:              "demo-patient-1",
+				Role:            RolePatient,
+				Workspace:       WorkspaceDemo,
+				Email:           "demo.patient.budi@archangel.local",
+				PasswordHash:    string(passwordHash),
+				DisplayName:     "Budi Santoso",
+				FirstName:       "Budi",
+				LastName:        "Santoso",
+				ThemeMode:       ThemeBlueMedical,
+				AccentColor:     "#2563eb",
+				PatientCode:     "dp1",
+				PatientStage:    StageDashboard,
+				ConsentAccepted: true,
 			},
 			Name:             "Budi Santoso",
 			Procedure:        "Laparoscopic Cholecystectomy",
 			Specialty:        "Digestive & Oncology Surgery",
 			Compliance:       91,
-			Risk:             "Low",
+			Risk:             RiskSafe,
 			RiskScore:        6,
 			Notes:            "High compliance and good breathing routine. Continue daily nutritional checks.",
 			NextAppointment:  "Tomorrow, 09:00 AM",
@@ -114,7 +117,7 @@ func seedIfNeeded(ctx context.Context, db *sql.DB) error {
 			},
 			Sleep: buildSleepEntries([]float64{7.1, 7.5, 6.8, 7.4, 7.2, 7.0, 7.6}),
 			Plan: &CarePlanDraft{
-				PatientID:   "p1",
+				PatientID:   "dp1",
 				SurgeryDate: "2026-04-15",
 				Medications: []MedicationPlan{
 					makeMedication("m1", "Cefuroxime", "Take as prescribed to reduce infection risk before the surgery begins safely.", "1 tablet", "every 8 hours", "after-eating", "2026-04-08T08:00:00.000Z"),
@@ -132,23 +135,25 @@ func seedIfNeeded(ctx context.Context, db *sql.DB) error {
 		},
 		{
 			Account: accountRow{
-				ID:           "patient-2",
-				Role:         RolePatient,
-				Email:        "siti@example.com",
-				PasswordHash: string(passwordHash),
-				DisplayName:  "Siti Aminah",
-				FirstName:    "Siti",
-				LastName:     "Aminah",
-				ThemeMode:    ThemeBlueMedical,
-				AccentColor:  "#2563eb",
-				PatientCode:  "p2",
-				PatientStage: StageEmpty,
+				ID:              "demo-patient-2",
+				Role:            RolePatient,
+				Workspace:       WorkspaceDemo,
+				Email:           "demo.patient.siti@archangel.local",
+				PasswordHash:    string(passwordHash),
+				DisplayName:     "Siti Aminah",
+				FirstName:       "Siti",
+				LastName:        "Aminah",
+				ThemeMode:       ThemeBlueMedical,
+				AccentColor:     "#2563eb",
+				PatientCode:     "dp2",
+				PatientStage:    StageDashboard,
+				ConsentAccepted: true,
 			},
 			Name:             "Siti Aminah",
 			Procedure:        "Herniorrhaphy",
 			Specialty:        "General Surgery",
 			Compliance:       45,
-			Risk:             "High",
+			Risk:             RiskIntervene,
 			RiskScore:        18,
 			Notes:            "Requires proactive outreach. Compliance remains below threshold for safe readiness.",
 			NextAppointment:  "Today, 03:30 PM",
@@ -174,7 +179,7 @@ func seedIfNeeded(ctx context.Context, db *sql.DB) error {
 			},
 			Sleep: buildSleepEntries([]float64{5.5, 6.0, 5.8, 6.2, 5.7, 5.9, 6.1}),
 			Plan: &CarePlanDraft{
-				PatientID:   "p2",
+				PatientID:   "dp2",
 				SurgeryDate: "2026-04-13",
 				Medications: []MedicationPlan{
 					makeMedication("m1", "Amoxicillin", "Use to keep the pre-operative infection risk under closer control each day.", "1 capsule", "every 12 hours", "after-eating", "2026-04-08T07:00:00.000Z"),
@@ -189,23 +194,25 @@ func seedIfNeeded(ctx context.Context, db *sql.DB) error {
 		},
 		{
 			Account: accountRow{
-				ID:           "patient-3",
-				Role:         RolePatient,
-				Email:        "agus@example.com",
-				PasswordHash: string(passwordHash),
-				DisplayName:  "Agus Wijaya",
-				FirstName:    "Agus",
-				LastName:     "Wijaya",
-				ThemeMode:    ThemeBlueMedical,
-				AccentColor:  "#2563eb",
-				PatientCode:  "p3",
-				PatientStage: StageEmpty,
+				ID:              "demo-patient-3",
+				Role:            RolePatient,
+				Workspace:       WorkspaceDemo,
+				Email:           "demo.patient.agus@archangel.local",
+				PasswordHash:    string(passwordHash),
+				DisplayName:     "Agus Wijaya",
+				FirstName:       "Agus",
+				LastName:        "Wijaya",
+				ThemeMode:       ThemeBlueMedical,
+				AccentColor:     "#2563eb",
+				PatientCode:     "dp3",
+				PatientStage:    StageDashboard,
+				ConsentAccepted: true,
 			},
 			Name:             "Agus Wijaya",
 			Procedure:        "Appendectomy",
 			Specialty:        "General Surgery",
 			Compliance:       78,
-			Risk:             "Medium",
+			Risk:             RiskBorderline,
 			RiskScore:        11,
 			Notes:            "Moderate compliance. Adjust communication cadence if risk score rises again.",
 			NextAppointment:  "Friday, 10:00 AM",
@@ -231,7 +238,7 @@ func seedIfNeeded(ctx context.Context, db *sql.DB) error {
 			},
 			Sleep: buildSleepEntries([]float64{6.8, 7.0, 6.9, 7.1, 7.2, 6.7, 7.0}),
 			Plan: &CarePlanDraft{
-				PatientID:   "p3",
+				PatientID:   "dp3",
 				SurgeryDate: "2026-04-24",
 				Medications: []MedicationPlan{
 					makeMedication("m1", "Vitamin C", "Helps keep your nutritional preparation steady during the week before surgery.", "1 tablet", "every 1 day", "after-eating", "2026-04-08T09:30:00.000Z"),
@@ -246,23 +253,25 @@ func seedIfNeeded(ctx context.Context, db *sql.DB) error {
 		},
 		{
 			Account: accountRow{
-				ID:           "patient-4",
-				Role:         RolePatient,
-				Email:        "rina@example.com",
-				PasswordHash: string(passwordHash),
-				DisplayName:  "Rina Mahendra",
-				FirstName:    "Rina",
-				LastName:     "Mahendra",
-				ThemeMode:    ThemeBlueMedical,
-				AccentColor:  "#2563eb",
-				PatientCode:  "p4",
-				PatientStage: StageEmpty,
+				ID:              "demo-patient-4",
+				Role:            RolePatient,
+				Workspace:       WorkspaceDemo,
+				Email:           "demo.patient.rina@archangel.local",
+				PasswordHash:    string(passwordHash),
+				DisplayName:     "Rina Mahendra",
+				FirstName:       "Rina",
+				LastName:        "Mahendra",
+				ThemeMode:       ThemeBlueMedical,
+				AccentColor:     "#2563eb",
+				PatientCode:     "dp4",
+				PatientStage:    StageDashboard,
+				ConsentAccepted: true,
 			},
 			Name:             "Rina Mahendra",
 			Procedure:        "Thyroid Lobectomy",
 			Specialty:        "Endocrine Surgery",
 			Compliance:       88,
-			Risk:             "Low",
+			Risk:             RiskSafe,
 			RiskScore:        7,
 			Notes:            "Ready for onboarding into the preparation workflow.",
 			NextAppointment:  "Next Week, 11:00 AM",
@@ -303,7 +312,7 @@ func seedIfNeeded(ctx context.Context, db *sql.DB) error {
 		}
 	}
 
-	if err := insertCalendarSeed(ctx, tx, "p1", doctor.ID, CalendarEventCreatePayload{
+	if err := insertCalendarSeed(ctx, tx, "dp1", doctor.ID, CalendarEventCreatePayload{
 		Type:    "appointment",
 		Title:   "Pre-op consultation",
 		Detail:  "Review anesthesia checklist and nutrition readiness.",
@@ -313,7 +322,7 @@ func seedIfNeeded(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
-	if err := insertCalendarSeed(ctx, tx, "p2", doctor.ID, CalendarEventCreatePayload{
+	if err := insertCalendarSeed(ctx, tx, "dp2", doctor.ID, CalendarEventCreatePayload{
 		Type:    "task",
 		Title:   "Smoking cessation call",
 		Detail:  "Follow up on smoking restrictions before the procedure.",
@@ -354,11 +363,11 @@ func makeMedication(id, name, description, amount, frequency string, mealTiming 
 func insertAccount(ctx context.Context, tx *sql.Tx, account accountRow) error {
 	_, err := tx.ExecContext(ctx, `
 		INSERT INTO accounts (
-			id, role, email, password_hash, display_name, first_name, last_name, license_number,
+			id, role, workspace, email, password_hash, display_name, first_name, last_name, license_number,
 			patient_code, theme_mode, accent_color, consent_accepted, patient_stage
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 	`,
-		account.ID, account.Role, account.Email, account.PasswordHash, account.DisplayName, account.FirstName,
+		account.ID, account.Role, account.Workspace, account.Email, account.PasswordHash, account.DisplayName, account.FirstName,
 		account.LastName, account.LicenseNumber, nullIfEmpty(account.PatientCode), account.ThemeMode,
 		account.AccentColor, account.ConsentAccepted, account.PatientStage,
 	)
@@ -392,15 +401,15 @@ func insertPatientSeed(ctx context.Context, tx *sql.Tx, doctorID string, seed st
 
 	_, err := tx.ExecContext(ctx, `
 		INSERT INTO patients (
-			patient_code, account_id, doctor_account_id, email, name, procedure, doctor_name, specialty,
+			patient_code, workspace, account_id, doctor_account_id, email, name, procedure, doctor_name, specialty,
 			compliance, risk, risk_score, notes, next_appointment, surgery_duration, hospital_stay,
-			last_consultation, streak, days_until_surgery, progress, tasks, sleep_entries, surgery_decision
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+				last_consultation, streak, days_until_surgery, progress, tasks, sleep_entries, latest_checkup_summary, latest_checkup_at, surgery_decision
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
 	`,
-		seed.Account.PatientCode, seed.Account.ID, doctorID, seed.Account.Email, seed.Name, seed.Procedure,
+		seed.Account.PatientCode, seed.Account.Workspace, seed.Account.ID, doctorID, seed.Account.Email, seed.Name, seed.Procedure,
 		"Dr. Andi Setiawan", seed.Specialty, seed.Compliance, seed.Risk, seed.RiskScore, seed.Notes,
 		seed.NextAppointment, seed.SurgeryDuration, seed.HospitalStay, seed.LastConsultation, seed.Streak,
-		seed.DaysUntilSurgery, string(progressJSON), string(tasksJSON), string(sleepJSON), DecisionNone,
+		seed.DaysUntilSurgery, string(progressJSON), string(tasksJSON), string(sleepJSON), "Weekly readiness review completed.", time.Now().UTC(), DecisionNone,
 	)
 	return err
 }
@@ -417,11 +426,12 @@ func insertCarePlanSeed(ctx context.Context, tx *sql.Tx, patientCode, procedure 
 	}
 	_, err := tx.ExecContext(ctx, `
 		INSERT INTO care_plans (
-			id, patient_code, invite_id, procedure, surgery_date, surgery_document,
+			id, workspace, patient_code, invite_id, procedure, surgery_date, surgery_document,
 			medications, diet, invite_status, accepted_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 	`,
 		fmt.Sprintf("plan-%s", patientCode),
+		WorkspaceDemo,
 		patientCode,
 		fmt.Sprintf("invite-%s-active", patientCode),
 		procedure,
@@ -443,10 +453,10 @@ func insertCalendarSeed(ctx context.Context, tx *sql.Tx, patientCode, creatorID 
 	}
 	_, err := tx.ExecContext(ctx, `
 		INSERT INTO calendar_events (
-			id, patient_code, type, title, detail, start_at, end_at, all_day, medication_id, recurrence, created_by_user_id
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+			id, workspace, patient_code, type, title, detail, variable_name, start_at, end_at, all_day, medication_id, recurrence, created_by_user_id
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 	`,
-		uuid.NewString(), patientCode, payload.Type, payload.Title, payload.Detail, payload.StartAt, nullIfEmpty(payload.EndAt),
+		uuid.NewString(), WorkspaceDemo, patientCode, payload.Type, payload.Title, payload.Detail, payload.VariableName, payload.StartAt, nullIfEmpty(payload.EndAt),
 		payload.AllDay, payload.MedicationID, recurrenceJSON, creatorID,
 	)
 	return err

@@ -75,6 +75,7 @@ func NewServer(config Config) (*Server, error) {
 func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/health", s.handleHealth)
 	s.mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(s.storageDir))))
+	s.mux.HandleFunc("/api/demo/session", s.handleDemoSession)
 	s.mux.HandleFunc("/api/auth/login", s.handleLogin)
 	s.mux.HandleFunc("/api/auth/register", s.handleRegister)
 	s.mux.Handle("/api/auth/logout", s.withAuth(s.handleLogout))
@@ -89,6 +90,7 @@ func (s *Server) registerRoutes() {
 	s.mux.Handle("/api/patient/diet", s.withAuthRole(RolePatient, s.handlePatientDiet))
 	s.mux.Handle("/api/patient/calendar", s.withAuthRole(RolePatient, s.handlePatientCalendar))
 	s.mux.Handle("/api/patient/sleep", s.withAuthRole(RolePatient, s.handlePatientSleep))
+	s.mux.Handle("/api/patient/chat", s.withAuthRole(RolePatient, s.handlePatientChat))
 	s.mux.Handle("/api/patient/stage", s.withAuthRole(RolePatient, s.handlePatientStage))
 	s.mux.Handle("/api/patient/consent", s.withAuthRole(RolePatient, s.handlePatientConsent))
 	s.mux.Handle("/api/doctor/dashboard", s.withAuthRole(RoleDoctor, s.handleDoctorDashboard))
@@ -220,7 +222,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	account, err := s.accountByEmail(r.Context(), payload.Email)
+	account, err := s.accountByEmailInWorkspace(r.Context(), payload.Email, WorkspaceLive)
 	if err != nil || !authenticatePassword(account.PasswordHash, payload.Password) {
 		writeError(w, http.StatusUnauthorized, "invalid email or password")
 		return
@@ -231,6 +233,27 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, SessionResponse{Token: session.Token, Session: session})
+}
+
+func (s *Server) handleDemoSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	payload, ok := readJSON[DemoSessionPayload](w, r)
+	if !ok {
+		return
+	}
+	if payload.Role != RoleDoctor && payload.Role != RolePatient {
+		writeError(w, http.StatusBadRequest, "invalid role")
+		return
+	}
+	session, err := s.createDemoSession(r.Context(), payload.Role)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "unable to create demo session")
+		return
+	}
+	writeJSON(w, http.StatusCreated, SessionResponse{Token: session.Token, Session: session})
 }
 
 func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -309,7 +332,7 @@ func (s *Server) handlePatientInvite(w http.ResponseWriter, r *http.Request, acc
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	invite, err := s.patientInvite(r.Context(), account.PatientCode)
+	invite, err := s.patientInvite(r.Context(), account.Workspace, account.PatientCode)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "unable to load invite")
 		return
@@ -322,7 +345,7 @@ func (s *Server) handlePatientInviteAccept(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	if err := s.acceptInvite(r.Context(), account.PatientCode); err != nil {
+	if err := s.acceptInvite(r.Context(), account.Workspace, account.PatientCode); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "pending invite not found")
 			return
@@ -338,7 +361,7 @@ func (s *Server) handlePatientProfile(w http.ResponseWriter, r *http.Request, ac
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	profile, err := s.patientProfile(r.Context(), account.PatientCode)
+	profile, err := s.patientProfile(r.Context(), account.Workspace, account.PatientCode)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "unable to load patient profile")
 		return
@@ -349,7 +372,7 @@ func (s *Server) handlePatientProfile(w http.ResponseWriter, r *http.Request, ac
 func (s *Server) handlePatientTasks(w http.ResponseWriter, r *http.Request, account accountRow) {
 	switch r.Method {
 	case http.MethodGet:
-		tasks, err := s.patientTasks(r.Context(), account.PatientCode)
+		tasks, err := s.patientTasks(r.Context(), account.Workspace, account.PatientCode)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "unable to load tasks")
 			return
@@ -368,7 +391,7 @@ func (s *Server) handlePatientTasks(w http.ResponseWriter, r *http.Request, acco
 			return
 		}
 		payload = value
-		tasks, err := s.updateTask(r.Context(), account.PatientCode, payload.TaskID, payload.Completed)
+		tasks, err := s.updateTask(r.Context(), account.Workspace, account.PatientCode, payload.TaskID, payload.Completed)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "unable to update task")
 			return
@@ -384,7 +407,7 @@ func (s *Server) handlePatientProgress(w http.ResponseWriter, r *http.Request, a
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	progress, err := s.patientProgress(r.Context(), account.PatientCode)
+	progress, err := s.patientProgress(r.Context(), account.Workspace, account.PatientCode)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "unable to load progress")
 		return
@@ -397,7 +420,7 @@ func (s *Server) handlePatientMedicines(w http.ResponseWriter, r *http.Request, 
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	items, err := s.patientMedications(r.Context(), account.PatientCode)
+	items, err := s.patientMedications(r.Context(), account.Workspace, account.PatientCode)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "unable to load medicines")
 		return
@@ -410,7 +433,7 @@ func (s *Server) handlePatientDiet(w http.ResponseWriter, r *http.Request, accou
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	items, err := s.patientDiet(r.Context(), account.PatientCode)
+	items, err := s.patientDiet(r.Context(), account.Workspace, account.PatientCode)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "unable to load diet")
 		return
@@ -434,7 +457,7 @@ func (s *Server) handlePatientCalendar(w http.ResponseWriter, r *http.Request, a
 	now := time.Now()
 	year := queryInt(r.URL.Query().Get("year"), now.Year())
 	month := queryInt(r.URL.Query().Get("month"), int(now.Month()))
-	value, err := s.patientCalendar(r.Context(), account.PatientCode, year, month)
+	value, err := s.patientCalendar(r.Context(), account.Workspace, account.PatientCode, year, month)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "unable to load calendar")
 		return
@@ -447,12 +470,37 @@ func (s *Server) handlePatientSleep(w http.ResponseWriter, r *http.Request, acco
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	value, err := s.patientSleep(r.Context(), account.PatientCode)
+	value, err := s.patientSleep(r.Context(), account.Workspace, account.PatientCode)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "unable to load sleep summary")
 		return
 	}
 	writeJSON(w, http.StatusOK, value)
+}
+
+func (s *Server) handlePatientChat(w http.ResponseWriter, r *http.Request, account accountRow) {
+	switch r.Method {
+	case http.MethodGet:
+		thread, err := s.chatThread(r.Context(), account.Workspace, account.PatientCode)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "unable to load chat")
+			return
+		}
+		writeJSON(w, http.StatusOK, thread)
+	case http.MethodPost:
+		payload, ok := readJSON[ChatMessageCreatePayload](w, r)
+		if !ok {
+			return
+		}
+		message, err := s.createChatMessage(r.Context(), account.Workspace, account.PatientCode, account, payload)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "unable to send message")
+			return
+		}
+		writeJSON(w, http.StatusCreated, message)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
 }
 
 func (s *Server) handlePatientStage(w http.ResponseWriter, r *http.Request, account accountRow) {
@@ -498,7 +546,7 @@ func (s *Server) handleDoctorDashboard(w http.ResponseWriter, r *http.Request, a
 	writeJSON(w, http.StatusOK, value)
 }
 
-func (s *Server) handleDoctorPendingCarePlan(w http.ResponseWriter, r *http.Request, _ accountRow) {
+func (s *Server) handleDoctorPendingCarePlan(w http.ResponseWriter, r *http.Request, account accountRow) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
@@ -507,7 +555,7 @@ func (s *Server) handleDoctorPendingCarePlan(w http.ResponseWriter, r *http.Requ
 	if !ok {
 		return
 	}
-	if err := s.createPendingCarePlan(r.Context(), payload); err != nil {
+	if err := s.createPendingCarePlan(r.Context(), account.Workspace, payload); err != nil {
 		writeError(w, http.StatusInternalServerError, "unable to create pending care plan")
 		return
 	}
@@ -519,7 +567,7 @@ func (s *Server) handleDoctorPatientRoutes(w http.ResponseWriter, r *http.Reques
 	switch {
 	case strings.HasPrefix(path, "lookup/"):
 		patientCode := strings.TrimPrefix(path, "lookup/")
-		profile, err := s.lookupPatient(r.Context(), patientCode)
+		profile, err := s.lookupPatient(r.Context(), account.Workspace, patientCode)
 		if err != nil {
 			writeError(w, http.StatusNotFound, "patient not found")
 			return
@@ -528,7 +576,7 @@ func (s *Server) handleDoctorPatientRoutes(w http.ResponseWriter, r *http.Reques
 	case strings.HasSuffix(path, "/calendar"):
 		patientCode := strings.TrimSuffix(path, "/calendar")
 		year := queryInt(r.URL.Query().Get("year"), time.Now().Year())
-		value, err := s.doctorCalendar(r.Context(), patientCode, year)
+		value, err := s.doctorCalendar(r.Context(), account.Workspace, patientCode, year)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "unable to load patient calendar")
 			return
@@ -544,11 +592,82 @@ func (s *Server) handleDoctorPatientRoutes(w http.ResponseWriter, r *http.Reques
 		if !ok {
 			return
 		}
-		if err := s.createCalendarEvent(r.Context(), patientCode, account.ID, payload); err != nil {
+		if err := s.createCalendarEvent(r.Context(), account.Workspace, patientCode, account.ID, payload); err != nil {
 			writeError(w, http.StatusInternalServerError, "unable to create calendar event")
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
+	case strings.HasSuffix(path, "/risk-scores"):
+		patientCode := strings.TrimSuffix(path, "/risk-scores")
+		switch r.Method {
+		case http.MethodGet:
+			items, err := s.riskScoreEntries(r.Context(), account.Workspace, patientCode)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "unable to load risk scores")
+				return
+			}
+			writeJSON(w, http.StatusOK, items)
+		case http.MethodPost:
+			payload, ok := readJSON[RiskScoreCreatePayload](w, r)
+			if !ok {
+				return
+			}
+			if err := s.createRiskScoreEntry(r.Context(), account.Workspace, patientCode, account, payload); err != nil {
+				writeError(w, http.StatusBadRequest, "unable to create risk score")
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+		default:
+			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
+	case strings.HasSuffix(path, "/latest-checkup"):
+		patientCode := strings.TrimSuffix(path, "/latest-checkup")
+		switch r.Method {
+		case http.MethodGet:
+			value, err := s.latestCheckup(r.Context(), account.Workspace, patientCode)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "unable to load latest checkup")
+				return
+			}
+			writeJSON(w, http.StatusOK, value)
+		case http.MethodPatch:
+			payload, ok := readJSON[LatestCheckupPayload](w, r)
+			if !ok {
+				return
+			}
+			value, err := s.updateLatestCheckup(r.Context(), account.Workspace, patientCode, payload)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "unable to update latest checkup")
+				return
+			}
+			writeJSON(w, http.StatusOK, value)
+		default:
+			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
+	case strings.HasSuffix(path, "/chat"):
+		patientCode := strings.TrimSuffix(path, "/chat")
+		switch r.Method {
+		case http.MethodGet:
+			thread, err := s.chatThread(r.Context(), account.Workspace, patientCode)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "unable to load chat")
+				return
+			}
+			writeJSON(w, http.StatusOK, thread)
+		case http.MethodPost:
+			payload, ok := readJSON[ChatMessageCreatePayload](w, r)
+			if !ok {
+				return
+			}
+			message, err := s.createChatMessage(r.Context(), account.Workspace, patientCode, account, payload)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "unable to send message")
+				return
+			}
+			writeJSON(w, http.StatusCreated, message)
+		default:
+			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		}
 	case strings.HasSuffix(path, "/surgery-decision"):
 		if r.Method != http.MethodPatch {
 			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -559,7 +678,7 @@ func (s *Server) handleDoctorPatientRoutes(w http.ResponseWriter, r *http.Reques
 		if !ok {
 			return
 		}
-		if err := s.setSurgeryDecision(r.Context(), patientCode, payload.Decision); err != nil {
+		if err := s.setSurgeryDecision(r.Context(), account.Workspace, patientCode, payload.Decision); err != nil {
 			writeError(w, http.StatusBadRequest, "unable to update surgery decision")
 			return
 		}
@@ -569,7 +688,7 @@ func (s *Server) handleDoctorPatientRoutes(w http.ResponseWriter, r *http.Reques
 			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
-		detail, err := s.doctorPatientDetail(r.Context(), path)
+		detail, err := s.doctorPatientDetail(r.Context(), account.Workspace, path)
 		if err != nil {
 			writeError(w, http.StatusNotFound, "patient not found")
 			return

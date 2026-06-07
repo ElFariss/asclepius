@@ -135,27 +135,27 @@ const router = useRouter();
 const sessionStore = useSessionStore();
 
 const currentRole = computed<UserRole>(() => (route.meta.role as UserRole) ?? "patient");
-const confirmPassword = ref("password123");
+const confirmPassword = ref("");
 const errorMessage = ref("");
 const submitting = ref(false);
 const form = reactive({
-  firstName: "Budi",
-  lastName: "Santoso",
-  email: "patient@example.com",
-  password: "password123",
+  firstName: "",
+  lastName: "",
+  email: "",
+  password: "",
   licenseNumber: "",
 });
 
 watch(
   currentRole,
-  (role) => {
+  () => {
     errorMessage.value = "";
-    form.firstName = role === "doctor" ? "Andi" : "Budi";
-    form.lastName = role === "doctor" ? "Setiawan" : "Santoso";
-    form.email = role === "doctor" ? "dr.andi@hospital.com" : "patient@example.com";
-    form.password = "password123";
+    form.firstName = "";
+    form.lastName = "";
+    form.email = "";
+    form.password = "";
     form.licenseNumber = "";
-    confirmPassword.value = "password123";
+    confirmPassword.value = "";
   },
   { immediate: true },
 );
